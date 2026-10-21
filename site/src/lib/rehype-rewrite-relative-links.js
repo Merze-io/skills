@@ -64,6 +64,10 @@ function rewriteHref(href, slug) {
 
   if (/\.md$/i.test(cleaned) && !cleaned.includes("/")) {
     const fileSlug = cleaned.replace(/\.md$/i, "");
+    // SKILL.md is the skill detail page, not a supporting sub-page
+    if (fileSlug.toLowerCase() === "skill") {
+      return `/${slug}/${hashSuffix}`;
+    }
     return `/${slug}/${fileSlug}/${hashSuffix}`;
   }
 
@@ -72,6 +76,9 @@ function rewriteHref(href, slug) {
     const file = parts.pop().replace(/\.md$/i, "");
     const nested = parts.filter((p) => p !== "..").join("/");
     if (!nested || nested === ".") {
+      if (file.toLowerCase() === "skill") {
+        return `/${slug}/${hashSuffix}`;
+      }
       return `/${slug}/${file}/${hashSuffix}`;
     }
   }
