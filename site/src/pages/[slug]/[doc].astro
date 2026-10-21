@@ -1,0 +1,102 @@
+---
+import { render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Icon from "../../components/Icon.astro";
+import {
+  getAllSkills,
+  getSupportingFiles,
+  githubBlobUrl,
+  githubEditUrl,
+  skillSlug,
+  supportingFileSlug,
+} from "../../lib/skills";
+import { extractToc } from "../../lib/toc";
+
+export async function getStaticPaths() {
+  const skills = await getAllSkills();
+  const paths = [];
+  for (const skill of skills) {
+    const slug = skillSlug(skill);
+    const files = await getSupportingFiles(slug);
+    for (const file of files) {
+      const fileSlug = supportingFileSlug(file);
+      paths.push({
+        params: { slug, doc: fileSlug },
+        props: { skill, supporting: file, fileSlug },
+      });
+    }
+  }
+  return paths;
+}
+
+const { skill, supporting, fileSlug } = Astro.props;
+const slug = skillSlug(skill);
+const { Content } = await render(supporting);
+const toc = extractToc(supporting.body ?? "");
+const title = `${fileSlug}.md · ${skill.data.name}`;
+---
+
+<BaseLayout
+  title={title}
+  description={`Supporting file ${fileSlug}.md for ${skill.data.name}`}
+  canonicalPath={`/${slug}/${fileSlug}/`}
+>
+  <article data-pagefind-body>
+    <p>
+      <a href={`/${slug}/`}>← {skill.data.name}</a>
+    </p>
+    <header>
+      <h1>{fileSlug}.md</h1>
+      <div class="skill-meta">
+        <a
+          href={githubBlobUrl(slug, `${fileSlug}.md`)}
+          rel="noopener noreferrer"
+        >
+          <Icon name="github" size={16} />
+          View source on GitHub
+        </a>
+        <a
+          href={githubEditUrl(slug, `${fileSlug}.md`)}
+          rel="noopener noreferrer"
+        >
+          <Icon name="external" size={16} />
+          Edit
+        </a>
+      </div>
+    </header>
+
+    <div class="layout-detail">
+      <div class="prose">
+        <Content />
+      </div>
+      {
+        toc.length > 0 && (
+          <aside class="toc" aria-labelledby="toc-heading">
+            <p class="toc__title" id="toc-heading">
+              On this page
+            </p>
+            <nav>
+              <ol>
+                {toc.map((item) => (
+                  <li class={`toc-depth-${item.depth}`}>
+                    <a href={`#${item.id}`}>{item.text}</a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </aside>
+        )
+      }
+    </div>
+  </article>
+</BaseLayout>
+
+<script>
+  document.querySelectorAll(".prose table").forEach((table) => {
+    if (table.parentElement?.classList.contains("table-wrap")) return;
+    const wrap = document.createElement("div");
+    wrap.className = "table-wrap";
+    table.parentElement?.insertBefore(wrap, table);
+    wrap.appendChild(table);
+  });
+</script>

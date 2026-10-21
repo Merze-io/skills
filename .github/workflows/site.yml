@@ -1,0 +1,74 @@
+name: site
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify catalog artifacts
+        run: |
+          test -f dist/healthz
+          test -f dist/skills.json
+          test -f dist/robots.txt
+          test -f dist/404.html
+          test -d dist/pagefind
+          test -f dist/us-llc-state-cost/index.html
+          test -f dist/us-llc-state-cost/states/index.html
+          grep -q 'ok' dist/healthz
+          grep -q 'us-llc-state-cost' dist/skills.json
+          grep -q '/us-llc-state-cost/states/' dist/us-llc-state-cost/index.html
+
+      - name: Link check (offline, local dist)
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --offline
+            --base site/dist
+            --scheme http
+            --scheme https
+            --scheme file
+            --include-fragments
+            --exclude 'https://github.com/Merze-io/skills/.*'
+            --exclude 'https://merze.ai/.*'
+            --exclude 'https://raw.githubusercontent.com/.*'
+            --exclude 'https://skills.merze.ai/.*'
+            site/dist
+          fail: true
+
+      - name: Serve dist and run axe
+        run: |
+          npx --yes serve dist -l 4173 &
+          SERVE_PID=$!
+          trap 'kill $SERVE_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 0.5
+          done
+          npx --yes @axe-core/cli@4.10.1 \
+            http://127.0.0.1:4173/ \
+            http://127.0.0.1:4173/us-llc-state-cost/ \
+            http://127.0.0.1:4173/us-llc-state-cost/states/ \
+            http://127.0.0.1:4173/about/ \
+            http://127.0.0.1:4173/404.html \
+            --exit

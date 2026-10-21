@@ -1,0 +1,266 @@
+---
+import Icon from "./Icon.astro";
+import type { SkillListItem } from "../lib/skills";
+
+interface Props {
+  skills: SkillListItem[];
+}
+
+const { skills } = Astro.props;
+const categories = [
+  ...new Set(skills.map((s) => s.category).filter(Boolean) as string[]),
+].sort();
+const tags = [...new Set(skills.flatMap((s) => s.tags))].sort();
+const versions = [
+  ...new Set(skills.map((s) => s.version).filter(Boolean) as string[]),
+].sort();
+const hasUpdated = skills.some((s) => s.updatedAt);
+const showCategory = categories.length > 0;
+const showTags = tags.length > 0;
+---
+
+<section class="filters" aria-label="Search and filters" data-skills-filters>
+  <div class="filters__row">
+    <div class="search-box">
+      <span class="search-box__icon" aria-hidden="true">
+        <Icon name="search" size={18} />
+      </span>
+      <label class="sr-only" for="skill-search">Search skills</label>
+      <input
+        id="skill-search"
+        type="search"
+        name="q"
+        placeholder="Search skills…"
+        autocomplete="off"
+        data-filter="search"
+      />
+    </div>
+    <div class="select-wrap">
+      <label for="skill-sort">Sort</label>
+      <select id="skill-sort" data-filter="sort">
+        <option value="name">Name</option>
+        {hasUpdated && <option value="updated">Last updated</option>}
+      </select>
+    </div>
+  </div>
+
+  {
+    (showCategory || showTags || versions.length > 0) && (
+      <div class="filters__row">
+        {showCategory && (
+          <fieldset class="filter-group">
+            <legend>Category</legend>
+            <div class="filter-chips">
+              {categories.map((cat) => (
+                <label class="chip">
+                  <input type="checkbox" data-filter="category" value={cat} />
+                  {cat}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {showTags && (
+          <fieldset class="filter-group">
+            <legend>Tags</legend>
+            <div class="filter-chips">
+              {tags.map((tag) => (
+                <label class="chip">
+                  <input type="checkbox" data-filter="tag" value={tag} />
+                  {tag}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {versions.length > 0 && (
+          <fieldset class="filter-group">
+            <legend>Version</legend>
+            <div class="filter-chips">
+              {versions.map((v) => (
+                <label class="chip">
+                  <input type="checkbox" data-filter="version" value={v} />
+                  {v}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+      </div>
+    )
+  }
+
+  <fieldset class="filter-group">
+    <legend>Supporting files</legend>
+    <div class="filter-chips">
+      <label class="chip">
+        <input type="checkbox" data-filter="supporting" value="yes" />
+        Has supporting files
+      </label>
+    </div>
+  </fieldset>
+
+  <p class="visually-hidden-live" aria-live="polite" data-filter-status></p>
+</section>
+
+<ul class="skill-list" data-skill-list>
+  {
+    skills.map((skill) => (
+      <li
+        class="skill-row"
+        data-skill-row
+        data-name={skill.name}
+        data-summary={skill.summary}
+        data-description={skill.description}
+        data-category={skill.category ?? ""}
+        data-tags={skill.tags.join(",")}
+        data-version={skill.version ?? ""}
+        data-supporting={skill.hasSupporting ? "yes" : "no"}
+        data-updated={skill.updatedAt ?? ""}
+      >
+        <a href={`/${skill.slug}/`}>
+          <span class="skill-row__name">{skill.name}</span>
+          <span class="skill-row__summary">{skill.summary}</span>
+          <span class="skill-row__meta">
+            {skill.version && <span class="badge">v{skill.version}</span>}
+            {skill.updatedAt && (
+              <time datetime={skill.updatedAt}>
+                {new Date(skill.updatedAt).toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
+                })}
+              </time>
+            )}
+          </span>
+        </a>
+      </li>
+    ))
+  }
+</ul>
+
+<div class="empty-state" data-empty-state hidden>
+  <p>
+    No skills match <strong data-empty-query></strong>. Clear filters, or try
+    “LLC”.
+  </p>
+  <button type="button" class="btn btn--secondary btn--sm" data-clear-filters>
+    Clear filters
+  </button>
+</div>
+
+<script>
+  type SkillRow = HTMLElement;
+
+  function selectedValues(selector: string): string[] {
+    return Array.from(
+      document.querySelectorAll<HTMLInputElement>(`${selector}:checked`),
+    ).map((el) => el.value);
+  }
+
+  function applyFilters() {
+    const root = document.querySelector("[data-skills-filters]");
+    if (!root) return;
+
+    const q =
+      document.querySelector<HTMLInputElement>("[data-filter=search]")?.value
+        .trim()
+        .toLowerCase() ?? "";
+    const sort =
+      document.querySelector<HTMLSelectElement>("[data-filter=sort]")?.value ??
+      "name";
+    const categories = selectedValues("[data-filter=category]");
+    const tags = selectedValues("[data-filter=tag]");
+    const versions = selectedValues("[data-filter=version]");
+    const supportingOnly = selectedValues("[data-filter=supporting]").includes(
+      "yes",
+    );
+
+    const list = document.querySelector<HTMLElement>("[data-skill-list]");
+    const rows = Array.from(
+      document.querySelectorAll<SkillRow>("[data-skill-row]"),
+    );
+    let visible = 0;
+
+    for (const row of rows) {
+      const name = (row.dataset.name ?? "").toLowerCase();
+      const summary = (row.dataset.summary ?? "").toLowerCase();
+      const description = (row.dataset.description ?? "").toLowerCase();
+      const category = row.dataset.category ?? "";
+      const rowTags = (row.dataset.tags ?? "").split(",").filter(Boolean);
+      const version = row.dataset.version ?? "";
+      const supporting = row.dataset.supporting === "yes";
+
+      let show = true;
+      if (q && !(name.includes(q) || summary.includes(q) || description.includes(q))) {
+        show = false;
+      }
+      if (categories.length && !categories.includes(category)) show = false;
+      if (tags.length && !tags.some((t) => rowTags.includes(t))) show = false;
+      if (versions.length && !versions.includes(version)) show = false;
+      if (supportingOnly && !supporting) show = false;
+
+      row.hidden = !show;
+      if (show) visible += 1;
+    }
+
+    rows.sort((a, b) => {
+      if (sort === "updated") {
+        const da = a.dataset.updated ?? "";
+        const db = b.dataset.updated ?? "";
+        if (da !== db) return db.localeCompare(da);
+      }
+      return (a.dataset.name ?? "").localeCompare(b.dataset.name ?? "", "en");
+    });
+    if (list) {
+      for (const row of rows) list.appendChild(row);
+    }
+
+    document.querySelectorAll(".chip").forEach((chip) => {
+      const input = chip.querySelector<HTMLInputElement>("input");
+      chip.classList.toggle("is-active", Boolean(input?.checked));
+    });
+
+    const empty = document.querySelector<HTMLElement>("[data-empty-state]");
+    const emptyQuery = document.querySelector<HTMLElement>("[data-empty-query]");
+    if (empty) {
+      empty.hidden = visible > 0;
+      if (emptyQuery) emptyQuery.textContent = q ? `“${q}”` : "your filters";
+    }
+    if (list) list.hidden = visible === 0;
+
+    const status = document.querySelector("[data-filter-status]");
+    if (status) {
+      status.textContent = `${visible} skill${visible === 1 ? "" : "s"} shown`;
+    }
+  }
+
+  function clearFilters() {
+    document
+      .querySelectorAll<HTMLInputElement>(
+        "[data-filter=search], [data-filter=category], [data-filter=tag], [data-filter=version], [data-filter=supporting]",
+      )
+      .forEach((el) => {
+        if (el.type === "checkbox") el.checked = false;
+        else el.value = "";
+      });
+    const sort = document.querySelector<HTMLSelectElement>("[data-filter=sort]");
+    if (sort) sort.value = "name";
+    applyFilters();
+  }
+
+  function init() {
+    const root = document.querySelector("[data-skills-filters]");
+    if (!root || (root as HTMLElement).dataset.ready) return;
+    (root as HTMLElement).dataset.ready = "1";
+    root.addEventListener("input", applyFilters);
+    root.addEventListener("change", applyFilters);
+    document
+      .querySelector("[data-clear-filters]")
+      ?.addEventListener("click", clearFilters);
+    applyFilters();
+  }
+
+  init();
+  document.addEventListener("astro:page-load", init);
+</script>

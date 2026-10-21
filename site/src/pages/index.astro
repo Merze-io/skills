@@ -1,0 +1,30 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PagefindSearch from "../components/PagefindSearch.astro";
+import SkillFilters from "../components/SkillFilters.astro";
+import { getSkillListItems } from "../lib/skills";
+
+const skills = await getSkillListItems();
+---
+
+<BaseLayout
+  title="Skills"
+  description="Browse and install public Agent Skills from Merze-io/skills."
+  canonicalPath="/"
+>
+  <header>
+    <h1 class="page-title--index">Agent Skills</h1>
+    <p class="lede">
+      Auto-generated catalog of every skill in
+      <a href="https://github.com/Merze-io/skills">Merze-io/skills</a>. Search,
+      filter, and copy an install command.
+    </p>
+  </header>
+
+  <PagefindSearch />
+
+  <div data-pagefind-body>
+    <h2 class="sr-only">All skills</h2>
+    <SkillFilters skills={skills} />
+  </div>
+</BaseLayout>
