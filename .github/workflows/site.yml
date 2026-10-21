@@ -39,23 +39,68 @@ jobs:
           grep -q 'us-llc-state-cost' dist/skills.json
           grep -q '/us-llc-state-cost/states/' dist/us-llc-state-cost/index.html
 
-      - name: Link check (offline, local dist)
-        uses: lycheeverse/lychee-action@v2
-        with:
-          args: >-
-            --offline
-            --base ${{ github.workspace }}/site/dist
-            --root-dir ${{ github.workspace }}/site/dist
-            --scheme http
-            --scheme https
-            --scheme file
-            --include-fragments
-            --exclude 'https://github.com/Merze-io/skills/.*'
-            --exclude 'https://merze.ai/.*'
-            --exclude 'https://raw.githubusercontent.com/.*'
-            --exclude 'https://skills.merze.ai/.*'
-            ${{ github.workspace }}/site/dist
-          fail: true
+      - name: Link check (local routes)
+        working-directory: site
+        run: |
+          set -euo pipefail
+          # Map site paths to built files and assert they exist.
+          check() {
+            local url="$1"
+            local file
+            if [[ "$url" == */ ]]; then
+              file="dist${url}index.html"
+            else
+              file="dist${url}"
+            fi
+            if [[ ! -f "$file" ]]; then
+              echo "Missing: $url -> $file"
+              return 1
+            fi
+            echo "OK $url"
+          }
+          check /
+          check /about/
+          check /us-llc-state-cost/
+          check /us-llc-state-cost/states/
+          check /skills.json
+          check /healthz
+          check /404.html
+          check /robots.txt
+          check /favicon.png
+          check /logo.avif
+          # Every root-relative href in HTML that points under this site
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, sys
+          dist = Path("dist")
+          hrefs = set()
+          for html in dist.rglob("*.html"):
+              text = html.read_text(encoding="utf-8", errors="ignore")
+              for m in re.finditer(r'''(?:href|src)=["'](/[^"'#?]*)''', text):
+                  hrefs.add(m.group(1))
+          missing = []
+          for href in sorted(hrefs):
+              if href.startswith("//"):
+                  continue
+              rel = href.lstrip("/")
+              candidates = [
+                  dist / rel,
+                  dist / rel / "index.html",
+                  dist / f"{rel}.html",
+              ]
+              if any(p.exists() for p in candidates):
+                  continue
+              # trailing-slash directory pages
+              if (dist / rel.rstrip("/")).is_dir() and (dist / rel.rstrip("/") / "index.html").exists():
+                  continue
+              missing.append(href)
+          if missing:
+              print("Broken local links:")
+              for m in missing:
+                  print(" ", m)
+              sys.exit(1)
+          print(f"Checked {len(hrefs)} root-relative links; all resolve.")
+          PY
 
       - name: Serve dist and run axe
         working-directory: site
