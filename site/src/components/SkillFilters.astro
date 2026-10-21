@@ -1,5 +1,4 @@
 ---
-import Icon from "./Icon.astro";
 import type { SkillListItem } from "../lib/skills";
 
 interface Props {
@@ -19,22 +18,8 @@ const showCategory = categories.length > 0;
 const showTags = tags.length > 0;
 ---
 
-<section class="filters" aria-label="Search and filters" data-skills-filters>
+<section class="filters" aria-label="Filters" data-skills-filters>
   <div class="filters__row">
-    <div class="search-box">
-      <span class="search-box__icon" aria-hidden="true">
-        <Icon name="search" size={18} />
-      </span>
-      <label class="sr-only" for="skill-search">Search skills</label>
-      <input
-        id="skill-search"
-        type="search"
-        name="q"
-        placeholder="Search skills…"
-        autocomplete="off"
-        data-filter="search"
-      />
-    </div>
     <div class="select-wrap">
       <label for="skill-sort">Sort</label>
       <select id="skill-sort" data-filter="sort">
@@ -142,7 +127,7 @@ const showTags = tags.length > 0;
 <div class="empty-state" data-empty-state hidden>
   <p>
     No skills match <strong data-empty-query></strong>. Clear filters, or try
-    “LLC”.
+    searching for “LLC” above.
   </p>
   <button type="button" class="btn btn--secondary btn--sm" data-clear-filters>
     Clear filters
@@ -162,10 +147,6 @@ const showTags = tags.length > 0;
     const root = document.querySelector("[data-skills-filters]");
     if (!root) return;
 
-    const q =
-      document.querySelector<HTMLInputElement>("[data-filter=search]")?.value
-        .trim()
-        .toLowerCase() ?? "";
     const sort =
       document.querySelector<HTMLSelectElement>("[data-filter=sort]")?.value ??
       "name";
@@ -183,18 +164,12 @@ const showTags = tags.length > 0;
     let visible = 0;
 
     for (const row of rows) {
-      const name = (row.dataset.name ?? "").toLowerCase();
-      const summary = (row.dataset.summary ?? "").toLowerCase();
-      const description = (row.dataset.description ?? "").toLowerCase();
       const category = row.dataset.category ?? "";
       const rowTags = (row.dataset.tags ?? "").split(",").filter(Boolean);
       const version = row.dataset.version ?? "";
       const supporting = row.dataset.supporting === "yes";
 
       let show = true;
-      if (q && !(name.includes(q) || summary.includes(q) || description.includes(q))) {
-        show = false;
-      }
       if (categories.length && !categories.includes(category)) show = false;
       if (tags.length && !tags.some((t) => rowTags.includes(t))) show = false;
       if (versions.length && !versions.includes(version)) show = false;
@@ -225,7 +200,7 @@ const showTags = tags.length > 0;
     const emptyQuery = document.querySelector<HTMLElement>("[data-empty-query]");
     if (empty) {
       empty.hidden = visible > 0;
-      if (emptyQuery) emptyQuery.textContent = q ? `“${q}”` : "your filters";
+      if (emptyQuery) emptyQuery.textContent = "your filters";
     }
     if (list) list.hidden = visible === 0;
 
@@ -238,11 +213,10 @@ const showTags = tags.length > 0;
   function clearFilters() {
     document
       .querySelectorAll<HTMLInputElement>(
-        "[data-filter=search], [data-filter=category], [data-filter=tag], [data-filter=version], [data-filter=supporting]",
+        "[data-filter=category], [data-filter=tag], [data-filter=version], [data-filter=supporting]",
       )
       .forEach((el) => {
-        if (el.type === "checkbox") el.checked = false;
-        else el.value = "";
+        el.checked = false;
       });
     const sort = document.querySelector<HTMLSelectElement>("[data-filter=sort]");
     if (sort) sort.value = "name";
