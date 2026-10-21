@@ -13,24 +13,19 @@ const tags = [...new Set(skills.flatMap((s) => s.tags))].sort();
 const versions = [
   ...new Set(skills.map((s) => s.version).filter(Boolean) as string[]),
 ].sort();
-const hasUpdated = skills.some((s) => s.updatedAt);
-const showCategory = categories.length > 0;
-const showTags = tags.length > 0;
+const supportingYes = skills.filter((s) => s.hasSupporting).length;
+const supportingNo = skills.length - supportingYes;
+// Hide facets with fewer than 2 distinct values; supporting only when mixed.
+const showCategory = categories.length >= 2;
+const showTags = tags.length >= 2;
+const showVersions = versions.length >= 2;
+const showSupporting = supportingYes > 0 && supportingNo > 0;
+const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
 ---
 
 <section class="filters" aria-label="Filters" data-skills-filters>
-  <div class="filters__row">
-    <div class="select-wrap">
-      <label for="skill-sort">Sort</label>
-      <select id="skill-sort" data-filter="sort">
-        <option value="name">Name</option>
-        {hasUpdated && <option value="updated">Last updated</option>}
-      </select>
-    </div>
-  </div>
-
   {
-    (showCategory || showTags || versions.length > 0) && (
+    showAnyFacet && (
       <div class="filters__row">
         {showCategory && (
           <fieldset class="filter-group">
@@ -58,7 +53,7 @@ const showTags = tags.length > 0;
             </div>
           </fieldset>
         )}
-        {versions.length > 0 && (
+        {showVersions && (
           <fieldset class="filter-group">
             <legend>Version</legend>
             <div class="filter-chips">
@@ -71,19 +66,20 @@ const showTags = tags.length > 0;
             </div>
           </fieldset>
         )}
+        {showSupporting && (
+          <fieldset class="filter-group">
+            <legend>Supporting files</legend>
+            <div class="filter-chips">
+              <label class="chip">
+                <input type="checkbox" data-filter="supporting" value="yes" />
+                Has supporting files
+              </label>
+            </div>
+          </fieldset>
+        )}
       </div>
     )
   }
-
-  <fieldset class="filter-group">
-    <legend>Supporting files</legend>
-    <div class="filter-chips">
-      <label class="chip">
-        <input type="checkbox" data-filter="supporting" value="yes" />
-        Has supporting files
-      </label>
-    </div>
-  </fieldset>
 
   <p class="visually-hidden-live" aria-live="polite" data-filter-status></p>
 </section>
@@ -147,9 +143,6 @@ const showTags = tags.length > 0;
     const root = document.querySelector("[data-skills-filters]");
     if (!root) return;
 
-    const sort =
-      document.querySelector<HTMLSelectElement>("[data-filter=sort]")?.value ??
-      "name";
     const categories = selectedValues("[data-filter=category]");
     const tags = selectedValues("[data-filter=tag]");
     const versions = selectedValues("[data-filter=version]");
@@ -179,22 +172,12 @@ const showTags = tags.length > 0;
       if (show) visible += 1;
     }
 
-    rows.sort((a, b) => {
-      if (sort === "updated") {
-        const da = a.dataset.updated ?? "";
-        const db = b.dataset.updated ?? "";
-        if (da !== db) return db.localeCompare(da);
-      }
-      return (a.dataset.name ?? "").localeCompare(b.dataset.name ?? "", "en");
-    });
+    rows.sort((a, b) =>
+      (a.dataset.name ?? "").localeCompare(b.dataset.name ?? "", "en"),
+    );
     if (list) {
       for (const row of rows) list.appendChild(row);
     }
-
-    document.querySelectorAll(".chip").forEach((chip) => {
-      const input = chip.querySelector<HTMLInputElement>("input");
-      chip.classList.toggle("is-active", Boolean(input?.checked));
-    });
 
     const empty = document.querySelector<HTMLElement>("[data-empty-state]");
     const emptyQuery = document.querySelector<HTMLElement>("[data-empty-query]");
@@ -218,8 +201,6 @@ const showTags = tags.length > 0;
       .forEach((el) => {
         el.checked = false;
       });
-    const sort = document.querySelector<HTMLSelectElement>("[data-filter=sort]");
-    if (sort) sort.value = "name";
     applyFilters();
   }
 

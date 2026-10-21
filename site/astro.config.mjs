@@ -9,6 +9,8 @@ import { rehypeDemoteHeadings } from "./src/lib/rehype-demote-headings.js";
 
 const sanitizeSchema = {
   ...defaultSchema,
+  // Keep heading ids as rehype-slug produces them (TOC / anchors must match).
+  clobberPrefix: "",
   attributes: {
     ...defaultSchema.attributes,
     code: [...(defaultSchema.attributes?.code ?? []), "className"],
@@ -49,6 +51,8 @@ export default defineConfig({
   markdown: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [
+      // Sanitize raw HTML first, then add ids/classes/rewrites that must survive.
+      [rehypeSanitize, sanitizeSchema],
       rehypeDemoteHeadings,
       rehypeSlug,
       [
@@ -59,7 +63,6 @@ export default defineConfig({
         },
       ],
       rehypeRewriteRelativeLinks,
-      [rehypeSanitize, sanitizeSchema],
     ],
     shikiConfig: {
       theme: "github-light",

@@ -23,7 +23,8 @@ const skills = await getSkillListItems();
 
   <PagefindSearch />
 
-  <div data-pagefind-body>
+  <!-- Index itself is not in the Pagefind body (avoid catalog self-hits). -->
+  <div>
     <h2 class="sr-only">All skills</h2>
     <SkillFilters skills={skills} />
   </div>

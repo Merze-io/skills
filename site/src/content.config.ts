@@ -23,9 +23,10 @@ const skillSchema = z
   })
   .passthrough();
 
+// One level deep. Negations skip underscore folders, site/, and node_modules/.
 const skills = defineCollection({
   loader: glob({
-    pattern: "*/SKILL.md",
+    pattern: ["*/SKILL.md", "!_*/**", "!.*/**", "!site/**", "!node_modules/**"],
     base: "..",
   }),
   schema: skillSchema,
@@ -33,7 +34,14 @@ const skills = defineCollection({
 
 const supporting = defineCollection({
   loader: glob({
-    pattern: "*/*.md",
+    pattern: [
+      "*/*.md",
+      "!_*/**",
+      "!.*/**",
+      "!site/**",
+      "!node_modules/**",
+      "!*/SKILL.md",
+    ],
     base: "..",
   }),
   schema: z.object({}).passthrough(),

@@ -90,8 +90,20 @@ export function validateSkillEntry(entry: SkillEntry): void {
   }
 }
 
+function isPublishableFolder(name: string): boolean {
+  return (
+    Boolean(name) &&
+    !name.startsWith("_") &&
+    !name.startsWith(".") &&
+    name !== "site" &&
+    name !== "node_modules"
+  );
+}
+
 export async function getAllSkills(): Promise<SkillEntry[]> {
-  const entries = await getCollection("skills");
+  const entries = await getCollection("skills", (entry) =>
+    isPublishableFolder(folderNameFromSkillId(entry.id)),
+  );
   for (const entry of entries) {
     validateSkillEntry(entry);
   }
@@ -119,7 +131,9 @@ export function isSkillMarkdown(entry: SupportingEntry): boolean {
 export async function getSupportingFiles(
   skillSlugName: string,
 ): Promise<SupportingEntry[]> {
-  const entries = await getCollection("supporting");
+  const entries = await getCollection("supporting", (entry) =>
+    isPublishableFolder(supportingSkillSlug(entry)),
+  );
   return entries
     .filter(
       (e) =>

@@ -13,7 +13,10 @@ ENV SOURCE_COMMIT=$SOURCE_COMMIT \
 RUN npm ci && npm run build
 
 FROM nginxinc/nginx-unprivileged:1.27-alpine
+USER root
+RUN mkdir -p /etc/nginx/snippets
+COPY site/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY site/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/site/dist /usr/share/nginx/html
-EXPOSE 8080
 USER 101
+EXPOSE 8080

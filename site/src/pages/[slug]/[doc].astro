@@ -43,7 +43,10 @@ const title = `${fileSlug}.md · ${skill.data.name}`;
 >
   <article data-pagefind-body>
     <p>
-      <a href={`/${slug}/`}>← {skill.data.name}</a>
+      <a href={`/${slug}/`} class="back-link">
+        <Icon name="arrow-left" size={16} />
+        {skill.data.name}
+      </a>
     </p>
     <header>
       <h1>{fileSlug}.md</h1>

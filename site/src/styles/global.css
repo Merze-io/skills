@@ -365,7 +365,8 @@ h3 {
   font-size: 0.875rem;
 }
 
-.skill-meta a {
+.skill-meta a,
+.back-link {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -464,9 +465,6 @@ h3 {
     flex-direction: column;
     align-items: flex-start;
   }
-  .skill-row a {
-    grid-template-columns: 1fr;
-  }
   .skill-row__meta {
     white-space: normal;
   }
@@ -557,45 +555,18 @@ h3 {
   align-items: end;
 }
 
-.search-box {
-  position: relative;
-  flex: 1 1 16rem;
-}
-
-.search-box input {
-  width: 100%;
-  padding: 0.875rem 1rem 0.875rem 2.75rem;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-2xl);
-  font: inherit;
-  background: #fff;
-  color: var(--color-text);
-  box-shadow: var(--shadow-soft);
-}
-
-.search-box input::placeholder {
-  color: var(--color-muted);
-}
-
-.search-box__icon {
-  position: absolute;
-  left: 1rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--color-muted);
-  pointer-events: none;
-}
-
+/* Flat facet groups — no bordered/tinted card chrome */
 fieldset.filter-group {
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-2xl);
-  padding: 0.75rem 1rem 1rem;
+  border: 0;
+  padding: 0;
   margin: 0;
-  background: var(--color-surface);
+  min-inline-size: 0;
+  background: transparent;
 }
 
 fieldset.filter-group legend {
-  padding: 0 0.35rem;
+  padding: 0;
+  margin-bottom: 0.5rem;
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--color-brand);
@@ -608,6 +579,7 @@ fieldset.filter-group legend {
 }
 
 .chip {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
@@ -627,17 +599,26 @@ fieldset.filter-group legend {
   border-color: var(--color-link);
 }
 
-.chip[aria-pressed="true"],
+.chip:has(input:checked),
 .chip.is-active {
   background: color-mix(in srgb, var(--color-accent) 14%, white);
   border-color: var(--color-accent);
   color: var(--color-brand);
 }
 
+.chip:has(input:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .chip input {
   position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
   opacity: 0;
-  pointer-events: none;
+  cursor: pointer;
 }
 
 .select-wrap label {
@@ -673,8 +654,9 @@ fieldset.filter-group legend {
 
 .skill-row a {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem 1.5rem;
+  /* Stack by default so 360px isn't overridden by a later 1fr auto rule */
+  grid-template-columns: 1fr;
+  gap: 0.35rem 1.5rem;
   padding: 1rem 0.25rem;
   text-decoration: none;
   color: inherit;
@@ -686,6 +668,7 @@ fieldset.filter-group legend {
   .skill-row a {
     grid-template-columns: 14rem 1fr auto;
     align-items: baseline;
+    gap: 0.5rem 1.5rem;
   }
 }
 

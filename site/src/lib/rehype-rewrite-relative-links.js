@@ -1,8 +1,10 @@
 import { visit } from "unist-util-visit";
+import path from "node:path";
 
 /**
  * Rewrite relative links/images in skill markdown.
- * Sibling .md → rendered sub-page; other paths → GitHub blob/raw.
+ * Sibling .md → rendered sub-page; cross-skill ../ paths → other skill URLs;
+ * other paths → GitHub blob/raw.
  */
 export function rehypeRewriteRelativeLinks() {
   return (tree, file) => {
@@ -47,6 +49,14 @@ function resolveSkillSlug(file) {
   return null;
 }
 
+function toSitePath(skill, file, hashSuffix) {
+  if (!file || file.toLowerCase() === "skill.md" || file.toLowerCase() === "skill") {
+    return `/${skill}/${hashSuffix}`;
+  }
+  const fileSlug = file.replace(/\.md$/i, "");
+  return `/${skill}/${fileSlug}/${hashSuffix}`;
+}
+
 function rewriteHref(href, slug) {
   if (
     href.startsWith("http://") ||
@@ -62,28 +72,37 @@ function rewriteHref(href, slug) {
   const hashSuffix = hash ? `#${hash}` : "";
   const cleaned = pathPart.replace(/^\.\//, "");
 
-  if (/\.md$/i.test(cleaned) && !cleaned.includes("/")) {
-    const fileSlug = cleaned.replace(/\.md$/i, "");
-    // SKILL.md is the skill detail page, not a supporting sub-page
-    if (fileSlug.toLowerCase() === "skill") {
-      return `/${slug}/${hashSuffix}`;
-    }
-    return `/${slug}/${fileSlug}/${hashSuffix}`;
+  // Resolve against the current skill directory (posix)
+  const resolved = path.posix.normalize(`${slug}/${cleaned}`);
+
+  // Escaped the repo root of skills → GitHub
+  if (resolved.startsWith("..") || path.posix.isAbsolute(resolved)) {
+    return `https://github.com/Merze-io/skills/blob/main/${slug}/${cleaned}${hashSuffix}`;
   }
 
-  if (/\.md$/i.test(cleaned)) {
-    const parts = cleaned.split("/");
-    const file = parts.pop().replace(/\.md$/i, "");
-    const nested = parts.filter((p) => p !== "..").join("/");
-    if (!nested || nested === ".") {
-      if (file.toLowerCase() === "skill") {
-        return `/${slug}/${hashSuffix}`;
-      }
-      return `/${slug}/${file}/${hashSuffix}`;
-    }
+  const parts = resolved.split("/").filter(Boolean);
+  if (parts.length === 0) {
+    return `/${slug}/${hashSuffix}`;
   }
 
-  return `https://github.com/Merze-io/skills/blob/main/${slug}/${cleaned}${hashSuffix}`;
+  const targetSkill = parts[0];
+  const rest = parts.slice(1).join("/");
+
+  if (/\.md$/i.test(rest) || parts.length === 1 && /\.md$/i.test(targetSkill)) {
+    // e.g. other-skill/SKILL.md or just resolved to skill/file.md
+    if (parts.length === 1 && /\.md$/i.test(targetSkill)) {
+      // shouldn't happen for normalize(`${slug}/file.md`)
+      return toSitePath(slug, targetSkill, hashSuffix);
+    }
+    return toSitePath(targetSkill, rest, hashSuffix);
+  }
+
+  // Non-markdown relative file → GitHub blob under the resolved skill
+  if (rest) {
+    return `https://github.com/Merze-io/skills/blob/main/${targetSkill}/${rest}${hashSuffix}`;
+  }
+
+  return `/${targetSkill}/${hashSuffix}`;
 }
 
 function rewriteImgSrc(src, slug) {
@@ -96,5 +115,9 @@ function rewriteImgSrc(src, slug) {
     return src;
   }
   const cleaned = src.replace(/^\.\//, "");
-  return `https://raw.githubusercontent.com/Merze-io/skills/main/${slug}/${cleaned}`;
+  const resolved = path.posix.normalize(`${slug}/${cleaned}`);
+  if (resolved.startsWith("..")) {
+    return `https://raw.githubusercontent.com/Merze-io/skills/main/${slug}/${cleaned}`;
+  }
+  return `https://raw.githubusercontent.com/Merze-io/skills/main/${resolved}`;
 }

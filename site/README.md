@@ -33,3 +33,11 @@ docker run --rm -p 8080:8080 skills-merze-ai
 ```
 
 Health check: `GET /healthz` → `ok`
+
+## nginx notes
+
+- Security headers live in `nginx-security-headers.conf` and are `include`d in every
+  `location` (so `add_header Cache-Control` does not drop CSP/nosniff/etc.).
+- CSP includes `'wasm-unsafe-eval'` for Pagefind WASM.
+- `absolute_redirect off` avoids `http://host:8080/...` redirects behind Coolify.
+- This image has **gzip only** (no brotli module in `nginx-unprivileged`).
