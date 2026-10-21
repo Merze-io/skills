@@ -8,9 +8,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: site
     steps:
       - uses: actions/checkout@v4
 
@@ -21,12 +18,15 @@ jobs:
           cache-dependency-path: site/package-lock.json
 
       - name: Install
+        working-directory: site
         run: npm ci
 
       - name: Build
+        working-directory: site
         run: npm run build
 
       - name: Verify catalog artifacts
+        working-directory: site
         run: |
           test -f dist/healthz
           test -f dist/skills.json
@@ -44,7 +44,8 @@ jobs:
         with:
           args: >-
             --offline
-            --base site/dist
+            --base ${{ github.workspace }}/site/dist
+            --root-dir ${{ github.workspace }}/site/dist
             --scheme http
             --scheme https
             --scheme file
@@ -53,10 +54,11 @@ jobs:
             --exclude 'https://merze.ai/.*'
             --exclude 'https://raw.githubusercontent.com/.*'
             --exclude 'https://skills.merze.ai/.*'
-            site/dist
+            ${{ github.workspace }}/site/dist
           fail: true
 
       - name: Serve dist and run axe
+        working-directory: site
         run: |
           npx --yes serve dist -l 4173 &
           SERVE_PID=$!
