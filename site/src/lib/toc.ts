@@ -6,12 +6,17 @@ export type TocItem = {
   id: string;
 };
 
+/**
+ * Mirror rehypeDemoteHeadings: drop leading H1, then assign depths that
+ * never skip a level under the page h1.
+ */
 export function extractToc(markdown: string): TocItem[] {
   const slugger = new GithubSlugger();
   const items: TocItem[] = [];
   const lines = markdown.split("\n");
   let inFence = false;
-  let skippedLeadingH1 = false;
+  let sawHeading = false;
+  let lastLevel = 1;
 
   for (const line of lines) {
     if (/^```/.test(line)) {
@@ -20,19 +25,24 @@ export function extractToc(markdown: string): TocItem[] {
     }
     if (inFence) continue;
 
-    const match = /^(#{1,3})\s+(.+)$/.exec(line);
+    const match = /^(#{1,6})\s+(.+)$/.exec(line);
     if (!match) continue;
 
-    // Leading H1 is dropped from the rendered body (page chrome owns the title).
-    if (!skippedLeadingH1 && match[1].length === 1) {
-      skippedLeadingH1 = true;
-      continue;
-    }
-    skippedLeadingH1 = true;
-
-    const depth = match[1].length <= 1 ? 2 : 3;
+    const original = match[1].length;
     const text = match[2].replace(/#+\s*$/, "").trim();
     if (!text) continue;
+
+    if (!sawHeading && original === 1) {
+      sawHeading = true;
+      continue;
+    }
+    sawHeading = true;
+
+    let depth = original + 1;
+    if (depth > lastLevel + 1) depth = lastLevel + 1;
+    depth = Math.min(Math.max(depth, 2), 6);
+    lastLevel = depth;
+
     items.push({ depth, text, id: slugger.slug(text) });
   }
 
