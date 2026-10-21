@@ -168,6 +168,7 @@ const version = skill.data.metadata?.version ?? null;
     if (table.parentElement?.classList.contains("table-wrap")) return;
     const wrap = document.createElement("div");
     wrap.className = "table-wrap";
+    wrap.tabIndex = 0;
     table.parentElement?.insertBefore(wrap, table);
     wrap.appendChild(table);
   });

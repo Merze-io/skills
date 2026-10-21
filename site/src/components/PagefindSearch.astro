@@ -161,7 +161,7 @@
     color: #112e51;
   }
 </style>
-<!-- is:inline keeps this in <head> so we can re-append after Pagefind CSS (load-order + specificity) -->
+<!-- is:inline keeps this as a raw <style> in the page (initially in <main>); JS re-appends it to <head> after Pagefind CSS for load-order + specificity -->
 <style is:inline id="pagefind-placeholder-override">
   /* Beat Pagefind `.pagefind-ui__search-input.svelte-*::placeholder{opacity:.2}` (same/lower specificity loses by order) */
   .pagefind-search .pagefind-ui input.pagefind-ui__search-input::placeholder,

@@ -6,6 +6,7 @@ import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { rehypeRewriteRelativeLinks } from "./src/lib/rehype-rewrite-relative-links.js";
 import { rehypeDemoteHeadings } from "./src/lib/rehype-demote-headings.js";
+import { rehypeFocusablePre } from "./src/lib/rehype-focusable-pre.js";
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -63,6 +64,8 @@ export default defineConfig({
         },
       ],
       rehypeRewriteRelativeLinks,
+      // After sanitize so tabindex survives; keeps scrollable <pre> keyboard-reachable.
+      rehypeFocusablePre,
     ],
     shikiConfig: {
       theme: "github-light",

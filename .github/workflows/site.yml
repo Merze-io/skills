@@ -216,12 +216,21 @@ jobs:
             if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
             sleep 0.5
           done
+          AXE_PAGES=(
+            http://127.0.0.1:4173/
+            http://127.0.0.1:4173/us-llc-state-cost/
+            http://127.0.0.1:4173/us-llc-state-cost/states/
+            http://127.0.0.1:4173/about/
+            http://127.0.0.1:4173/404.html
+          )
+          npx --yes @axe-core/cli@4.10.1 "${AXE_PAGES[@]}" --exit
+          # Mobile width catch scrollable-region-focusable on overflowing <pre>/code
           npx --yes @axe-core/cli@4.10.1 \
             http://127.0.0.1:4173/ \
             http://127.0.0.1:4173/us-llc-state-cost/ \
             http://127.0.0.1:4173/us-llc-state-cost/states/ \
             http://127.0.0.1:4173/about/ \
-            http://127.0.0.1:4173/404.html \
+            --chrome-options="window-size=360,800" \
             --exit
 
   docker-smoke:
