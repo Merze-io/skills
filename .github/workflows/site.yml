@@ -161,10 +161,13 @@ jobs:
           # bad
           EOF
           set +e
-          npm run build > /tmp/bad-fm-build.log 2>&1
+          # NO_COLOR so Astro/Zod ANSI codes don't split the exact error strings
+          NO_COLOR=1 FORCE_COLOR=0 npm run build > /tmp/bad-fm-build.log 2>&1
           code=$?
           set -e
           rm -rf "$FIX" "$BAD"
+          # Strip any residual ANSI (CI may still force color)
+          sed -i 's/\x1b\[[0-9;]*[mK]//g' /tmp/bad-fm-build.log
           if [[ $code -eq 0 ]]; then
             echo "Expected build to fail for empty description"
             cat /tmp/bad-fm-build.log
