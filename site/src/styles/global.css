@@ -352,6 +352,7 @@ h3 {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.875rem;
   overflow-x: auto;
+  white-space: pre;
   color: var(--color-brand);
 }
 
