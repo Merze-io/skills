@@ -104,7 +104,7 @@ const version = skill.data.metadata?.version ?? null;
     <section class="panel" aria-labelledby="install-heading">
       <h2 class="panel__title" id="install-heading">Install</h2>
       <div class="install-box">
-        <code>{cmd}</code>
+        <code tabindex="0">{cmd}</code>
         <CopyButton text={cmd} />
       </div>
     </section>
