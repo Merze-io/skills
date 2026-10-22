@@ -884,10 +884,12 @@ jobs:
             cd "$TMPPROJ"
             HOME="$TMPHOME" npx -y skills@1.7.4 check 2>&1 | tee /tmp/skills-check.out
           )
-          # Exit 0 already required by set -e; also require real status text
-          # Require a positive "up to date" status — do not match the "Checking…" banner alone.
-          if ! grep -Eiq 'up to date|no updates|already up.to.date|already installed|is current' /tmp/skills-check.out; then
-            echo "skills check output missing expected up-to-date status:"
+          # Exit 0 already required by set -e.
+          # skills@1.7.4 always prints "Checking for skill updates…" — that banner
+          # alone must not count as success. Require a real per-skill check, and
+          # fail on drift language (quiet output after Checking N skill(s) = current).
+          if ! grep -Eiq 'Checking [0-9]+ skill|Checking skills from source' /tmp/skills-check.out; then
+            echo "skills check did not appear to inspect skills:"
             cat /tmp/skills-check.out
             exit 1
           fi
