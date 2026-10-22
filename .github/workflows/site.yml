@@ -857,6 +857,23 @@ jobs:
           print("updated_at OK:", d["skills"][0]["updated_at"])
           PY
 
+          # Published curl/tar snippet against nginx (byte-identical to source).
+          # Uses HOME so mkdir -p ~/… is exercised; does not rewrite the dest path.
+          SMOKE_HOME=$(mktemp -d)
+          (
+            export HOME="$SMOKE_HOME"
+            snippet=$(python3 -c "import json; print(json.load(open('/tmp/skills.json'))['skills'][0]['install']['curl'])")
+            snippet=$(printf '%s\n' "$snippet" | sed "s#https://skills.merze.ai#$ORIGIN#")
+            bash -lc "$snippet"
+          )
+          skill_name=$(python3 -c "import json; print(json.load(open('/tmp/skills.json'))['skills'][0]['name'])")
+          installed="$SMOKE_HOME/.agents/skills/$skill_name"
+          test -d "$installed"
+          for f in $(python3 -c "import json; print(' '.join(x['path'] for x in json.load(open('/tmp/skills.json'))['skills'][0]['files']))"); do
+            cmp -s "$installed/$f" "$skill_name/$f"
+          done
+          echo "curl/tar snippet vs nginx OK ($skill_name → $installed)"
+
           # skills check: lock wellKnownDigest must equal live zip; check finds no drift
           lock=$(find "$TMPPROJ" "$TMPHOME" -name 'skills-lock.json' | head -1)
           test -n "$lock"
