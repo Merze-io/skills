@@ -3,13 +3,17 @@ FROM node:22-alpine AS build
 WORKDIR /repo
 COPY . .
 WORKDIR /repo/site
-# Optional Coolify build args for "last updated" (omit field when unset)
+# Coolify typically passes SOURCE_DATE / SOURCE_COMMIT_DATE; SOURCE_DATE_EPOCH
+# is the portable fallback when .git is absent (.dockerignore). Required for
+# skills.json updated_at — build fails if none are set and git is unavailable.
 ARG SOURCE_COMMIT=
 ARG SOURCE_DATE=
 ARG SOURCE_COMMIT_DATE=
+ARG SOURCE_DATE_EPOCH=
 ENV SOURCE_COMMIT=$SOURCE_COMMIT \
     SOURCE_DATE=$SOURCE_DATE \
     SOURCE_COMMIT_DATE=$SOURCE_COMMIT_DATE \
+    SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH \
     PUPPETEER_SKIP_DOWNLOAD=1
 RUN npm ci && npm run build
 

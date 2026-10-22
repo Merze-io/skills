@@ -3,11 +3,7 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { parse as parseYaml } from "yaml";
-import {
-  isPublishableSkillFolder,
-  listPublishableSkillDirs,
-  listSafeSkillFiles,
-} from "./skill-sources";
+import { listPublishableSkillDirs, listSafeSkillFiles } from "./skill-sources";
 import {
   SITE_ORIGIN,
   absolute,
@@ -16,7 +12,6 @@ import {
   discoveryIndexPath,
   rawUrl,
   skillJsonUrl,
-  skillPath,
   tarUrl,
   zipUrl,
 } from "./routes";
@@ -51,6 +46,8 @@ const RESERVED_SKILL_NAMES = new Set([
   "logo",
   "claude",
   "_astro",
+  // Collides with /files/ download tree (sandboxed text/plain)
+  "files",
 ]);
 
 const SKILL_NAME_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -149,6 +146,13 @@ function parseFrontmatter(skillMd: string): {
   };
 }
 
+/** Always UTC ISO-8601 (`…Z`), never committer-offset mixed with Z. */
+function toUtcIso(value: string | number | Date): string | null {
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
 export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
   try {
     const out = execFileSync(
@@ -156,28 +160,30 @@ export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
       ["log", "-1", "--format=%cI", "--", skillDir],
       { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
     ).trim();
-    if (out) return out;
+    const iso = out ? toUtcIso(out) : null;
+    if (iso) return iso;
   } catch {
-    // no git / shallow / missing
+    // no git / shallow / missing (.dockerignore strips .git in prod images)
   }
   const epoch = process.env.SOURCE_DATE_EPOCH;
   if (epoch && /^\d+$/.test(epoch)) {
-    return new Date(Number(epoch) * 1000).toISOString();
+    const iso = toUtcIso(Number(epoch) * 1000);
+    if (iso) return iso;
   }
   const fromEnv =
     process.env.SOURCE_DATE || process.env.SOURCE_COMMIT_DATE || "";
   if (fromEnv.trim()) {
-    const d = new Date(fromEnv);
-    if (!Number.isNaN(d.getTime())) return d.toISOString();
+    const iso = toUtcIso(fromEnv.trim());
+    if (iso) return iso;
   }
-  return "1980-01-01T00:00:00.000Z";
+  throw new Error(
+    `No updated_at for ${skillDir}: need git history, SOURCE_DATE_EPOCH, SOURCE_DATE, or SOURCE_COMMIT_DATE (Docker must pass one; Coolify usually sets SOURCE_DATE / SOURCE_COMMIT_DATE)`,
+  );
 }
 
 /** Prefer the shared helper; keep a thin alias for callers. */
 export function discoverSkillDirs(repoRoot: string): string[] {
-  return listPublishableSkillDirs(repoRoot).filter((n) =>
-    isPublishableSkillFolder(n),
-  );
+  return listPublishableSkillDirs(repoRoot);
 }
 
 export function loadSkillBundle(
@@ -279,52 +285,53 @@ function installBlock(name: string): {
   };
 }
 
-export function buildSkillsIndexJson(bundles: SkillBundle[]): string {
-  const allZip = buildZip(
-    bundles.flatMap((b) =>
-      b.files.map((f) => ({
-        path: `${b.name}/${f.path}`,
-        data: f.bytes,
-      })),
-    ),
-  );
+function skillIndexEntry(b: SkillBundle) {
+  return {
+    name: b.name,
+    title: b.title,
+    description: b.description,
+    version: b.version,
+    license: b.license,
+    category: b.category,
+    tags: b.tags,
+    updated_at: b.updatedAt,
+    // HTML catalog page lives at /<name>/ until PR-2 moves it to /skill/<name>
+    url: `${SITE_ORIGIN}/${b.name}/`,
+    skill_md_url: absolute(rawUrl(b.name, "SKILL.md")),
+    json_url: absolute(skillJsonUrl(b.name)),
+    zip_url: absolute(zipUrl(b.name)),
+    tar_gz_url: absolute(tarUrl(b.name)),
+    zip_sha256: b.zipSha256,
+    skill_md_sha256: b.skillMdSha256,
+    files: b.files.map((f) => ({
+      path: f.path,
+      url: absolute(rawUrl(b.name, f.path)),
+      size: f.size,
+      sha256: f.sha256,
+      media_type: f.mediaType,
+    })),
+    install: installBlock(b.name),
+  };
+}
+
+export function buildSkillsIndexJson(
+  bundles: SkillBundle[],
+  allZipSha256: string,
+): string {
   const payload = {
     $schema: SKILLS_INDEX_SCHEMA,
     schema_version: 1,
     site: {
       name: "Merze Skills",
       url: SITE_ORIGIN,
-      install_docs: `${SITE_ORIGIN}/install`,
+      // /install lands in PR-3; /about is the live install/contribute page today
+      install_docs: `${SITE_ORIGIN}/about`,
       discovery: absolute(discoveryIndexPath()),
       all_zip: absolute(allZipUrl()),
       all_tar_gz: absolute(allTarUrl()),
-      all_sha256: sha256Hex(allZip),
+      all_sha256: allZipSha256,
     },
-    skills: bundles.map((b) => ({
-      name: b.name,
-      title: b.title,
-      description: b.description,
-      version: b.version,
-      license: b.license,
-      category: b.category,
-      tags: b.tags,
-      updated_at: b.updatedAt,
-      url: absolute(skillPath(b.name)),
-      skill_md_url: absolute(rawUrl(b.name, "SKILL.md")),
-      json_url: absolute(skillJsonUrl(b.name)),
-      zip_url: absolute(zipUrl(b.name)),
-      tar_gz_url: absolute(tarUrl(b.name)),
-      zip_sha256: b.zipSha256,
-      skill_md_sha256: b.skillMdSha256,
-      files: b.files.map((f) => ({
-        path: f.path,
-        url: absolute(rawUrl(b.name, f.path)),
-        size: f.size,
-        sha256: f.sha256,
-        media_type: f.mediaType,
-      })),
-      install: installBlock(b.name),
-    })),
+    skills: bundles.map(skillIndexEntry),
   };
   return JSON.stringify(payload, null, 2) + "\n";
 }
@@ -338,9 +345,7 @@ export function buildSkillJson(bundle: SkillBundle): string {
     }
     content[f.path] = new TextDecoder().decode(f.bytes);
   }
-  const entry = JSON.parse(buildSkillsIndexJson([bundle]));
-  const skill = entry.skills[0];
-  const payload = { ...skill, content };
+  const payload = { ...skillIndexEntry(bundle), content };
   return JSON.stringify(payload, null, 2) + "\n";
 }
 
@@ -385,11 +390,8 @@ export function buildLlmsTxt(bundles: SkillBundle[]): string {
       `- [${b.title}](${absolute(rawUrl(b.name, "SKILL.md"))}): ${desc}`,
     );
   }
+  // /install.md is PR-3; until then point humans at /about (no Install section with 404s)
   lines.push(
-    "",
-    "## Install",
-    "",
-    `- [Install guide](${SITE_ORIGIN}/install.md)`,
     "",
     "## Machine-readable",
     "",
@@ -470,7 +472,10 @@ export function writeDistributionArtifacts(
     path.join(distDir, ".well-known", "agent-skills", "index.json"),
     buildDiscoveryIndex(bundles),
   );
-  writeFile(path.join(distDir, "skills.json"), buildSkillsIndexJson(bundles));
+  writeFile(
+    path.join(distDir, "skills.json"),
+    buildSkillsIndexJson(bundles, sha256Hex(allZip)),
+  );
   writeFile(path.join(distDir, "llms.txt"), buildLlmsTxt(bundles));
   writeFile(path.join(distDir, "llms-full.txt"), buildLlmsFullTxt(bundles));
 

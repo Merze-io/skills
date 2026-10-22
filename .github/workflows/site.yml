@@ -74,33 +74,38 @@ jobs:
         working-directory: site
         run: npm run verify-dist
 
-      - name: Reproducible distribution artifacts
+      - name: Reproducible distribution artifacts (cross-TZ)
         working-directory: site
         run: |
           set -euo pipefail
           rm -rf dist2
           mv dist dist1
-          npm run build
+          # Second build under a different TZ — zip DOS time must stay stable
+          TZ=America/New_York npm run build
           mv dist dist2
           mv dist1 dist
           python3 - <<'PY'
           import hashlib, pathlib, sys
           dist = pathlib.Path("dist")
           dist2 = pathlib.Path("dist2")
-          patterns = [
-              "skill/**",
-              "skills.zip",
-              "skills.tar.gz",
-              "skills.json",
-              "llms.txt",
-              "llms-full.txt",
-              ".well-known/**",
-              "schemas/**",
+          roots = [
+              dist / "skill",
+              dist / ".well-known",
+              dist / "schemas",
+          ]
+          singles = [
+              dist / "skills.zip",
+              dist / "skills.tar.gz",
+              dist / "skills.json",
+              dist / "llms.txt",
+              dist / "llms-full.txt",
           ]
           files = []
-          for pat in patterns:
-              files.extend(dist.glob(pat))
-          files = sorted({p for p in files if p.is_file()})
+          for root in roots:
+              if root.is_dir():
+                  files.extend(p for p in root.rglob("*") if p.is_file())
+          files.extend(p for p in singles if p.is_file())
+          files = sorted(set(files))
           if not files:
               print("No distribution files matched")
               sys.exit(1)
@@ -116,11 +121,19 @@ jobs:
               if h1 != h2:
                   bad.append(f"{rel}: {h1} != {h2}")
           if bad:
-              print("Reproducibility failures:")
+              print("Reproducibility failures (UTC vs America/New_York):")
               for b in bad:
                   print(" ", b)
               sys.exit(1)
-          print(f"Reproducible: {len(files)} distribution file(s)")
+          print(f"Reproducible across TZ: {len(files)} distribution file(s)")
+          for rel in [
+              "skill/us-llc-state-cost.zip",
+              "skills.zip",
+              ".well-known/agent-skills/index.json",
+              "skills.json",
+          ]:
+              h = hashlib.sha256((dist / rel).read_bytes()).hexdigest()
+              print(f"  {rel}: {h}")
           PY
           rm -rf dist2
 
@@ -516,7 +529,13 @@ jobs:
       - name: Docker build and smoke
         run: |
           set -euo pipefail
-          docker build -f site/Dockerfile -t skills-merze-ai:ci .
+          # .dockerignore excludes .git — pass a real UTC date so updated_at is not 1980
+          SOURCE_DATE="$(git log -1 --format=%cI)"
+          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
+          docker build -f site/Dockerfile \
+            --build-arg "SOURCE_DATE=${SOURCE_DATE}" \
+            --build-arg "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" \
+            -t skills-merze-ai:ci .
           cid=$(docker run -d -p 18080:8080 skills-merze-ai:ci)
           trap 'docker rm -f "$cid" >/dev/null' EXIT
           for i in $(seq 1 30); do
@@ -630,5 +649,37 @@ jobs:
           cmp -s "$skill_dir2/SKILL.md" us-llc-state-cost/SKILL.md
           cmp -s "$skill_dir2/states.md" us-llc-state-cost/states.md
           echo "npx scoped install OK: $skill_dir2"
+
+          # HTML must keep security headers and must NOT get dist ACAO
+          html_headers=$(curl -sI "$ORIGIN/")
+          echo "$html_headers" | head -1 | grep -q '200'
+          ! echo "$html_headers" | grep -qi 'access-control-allow-origin'
+          echo "$html_headers" | grep -qi 'content-security-policy'
+          echo "$html_headers" | grep -qi "default-src 'self'"
+
+          zip_headers=$(curl -sI "$ORIGIN/skill/us-llc-state-cost.zip")
+          echo "$zip_headers" | head -1 | grep -q '200'
+          echo "$zip_headers" | grep -qi 'content-type: application/zip'
+          echo "$zip_headers" | grep -qi 'access-control-allow-origin: \*'
+
+          # updated_at must be real UTC ISO (not the 1980 fallback)
+          curl -fsS "$ORIGIN/skills.json" -o /tmp/skills.json
+          python3 - <<'PY'
+          import json, re
+          d = json.load(open("/tmp/skills.json"))
+          for s in d["skills"]:
+              u = s["updated_at"]
+              assert u.endswith("Z"), u
+              assert not u.startswith("1980-"), u
+              assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z", u), u
+          print("updated_at OK:", d["skills"][0]["updated_at"])
+          PY
+
+          # skills check: wellKnownDigest matches live zip (plan §3.1)
+          (
+            cd "$TMPPROJ"
+            HOME="$TMPHOME" npx -y skills@1.7.4 check 2>&1 | tee /tmp/skills-check.out
+          )
+          echo "skills check OK"
 
           echo "Docker smoke OK"

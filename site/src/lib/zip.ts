@@ -1,5 +1,5 @@
-import { deflateSync, gzipSync } from "node:zlib";
-import { strToU8, zipSync } from "fflate";
+import { gzipSync } from "node:zlib";
+import { zipSync } from "fflate";
 
 export type ArchiveFile = {
   /** Path inside the archive (posix, no leading slash). */
@@ -7,9 +7,16 @@ export type ArchiveFile = {
   data: Uint8Array;
 };
 
-const DOS_1980_01_01 = new Date(Date.UTC(1980, 0, 1, 0, 0, 0));
+/**
+ * Fixed DOS local time. fflate reads mtime via local getters (getFullYear/…),
+ * so Date.UTC(1980,…) shifts with TZ and America/* throws "date not in range".
+ * `new Date(1980, 0, 1)` is local-midnight on purpose → stable zip bytes.
+ */
+const DOS_1980_01_01 = new Date(1980, 0, 1, 0, 0, 0);
 /** Unix mode 0644 regular file in ZIP external attributes. */
 const EXT_ATTR_0644 = (0o100644 << 16) >>> 0;
+/** ZIP host OS = Unix so unzip honours Unix external attrs (not fat). */
+const ZIP_OS_UNIX = 3;
 
 function sortedFiles(files: ArchiveFile[]): ArchiveFile[] {
   return [...files].sort((a, b) =>
@@ -21,12 +28,20 @@ function sortedFiles(files: ArchiveFile[]): ArchiveFile[] {
 export function buildZip(files: ArchiveFile[]): Uint8Array {
   const zippable: Record<
     string,
-    [Uint8Array, { level: number; mtime: Date; attrs: number }]
+    [
+      Uint8Array,
+      { level: number; mtime: Date; attrs: number; os: number },
+    ]
   > = {};
   for (const f of sortedFiles(files)) {
     zippable[f.path] = [
       f.data,
-      { level: 9, mtime: DOS_1980_01_01, attrs: EXT_ATTR_0644 },
+      {
+        level: 9,
+        mtime: DOS_1980_01_01,
+        attrs: EXT_ATTR_0644,
+        os: ZIP_OS_UNIX,
+      },
     ];
   }
   return zipSync(zippable, { level: 9 });
@@ -100,21 +115,4 @@ function buildUstar(files: ArchiveFile[]): Uint8Array {
   // two zero blocks end marker
   chunks.push(Buffer.alloc(1024, 0));
   return Buffer.concat(chunks);
-}
-
-/** Convenience: zip from utf-8 strings (tests / small helpers). */
-export function zipStrings(
-  entries: Record<string, string>,
-): Uint8Array {
-  return buildZip(
-    Object.entries(entries).map(([path, text]) => ({
-      path,
-      data: strToU8(text),
-    })),
-  );
-}
-
-/** Expose deflate for callers that need raw compressed bytes (unused). */
-export function deflate(data: Uint8Array): Uint8Array {
-  return deflateSync(data, { level: 9 });
 }

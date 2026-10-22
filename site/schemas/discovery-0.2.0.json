@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://schemas.agentskills.io/discovery/0.2.0/schema.json",
+  "$comment": "Hand-written local copy of the Agent Skills discovery RFC v0.2.0 schema. Upstream URI (schemas.agentskills.io) was unreachable (500/TLS) at authoring time; not vendored from a published package.",
   "title": "Agent Skills discovery index v0.2.0",
   "type": "object",
   "additionalProperties": true,

@@ -9,6 +9,11 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { unzipSync } from "fflate";
 import Ajv2020 from "ajv/dist/2020.js";
+import {
+  assertSafeSkillRelativePath,
+  listPublishableSkillDirs,
+  listSafeSkillFiles,
+} from "../src/lib/skill-sources.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(__dirname, "..");
@@ -26,47 +31,6 @@ function fail(msg) {
 
 function readJson(p) {
   return JSON.parse(fs.readFileSync(p, "utf8"));
-}
-
-function listSkillDirs() {
-  return fs
-    .readdirSync(repoRoot, { withFileTypes: true })
-    .filter(
-      (e) =>
-        e.isDirectory() &&
-        !e.name.startsWith("_") &&
-        !e.name.startsWith(".") &&
-        e.name !== "site" &&
-        e.name !== "node_modules" &&
-        fs.existsSync(path.join(repoRoot, e.name, "SKILL.md")),
-    )
-    .map((e) => e.name)
-    .sort();
-}
-
-const ALLOWED_EXT = new Set([".md", ".txt", ".json", ".yaml", ".yml", ".csv"]);
-
-function walkFiles(dir, base = "") {
-  const out = [];
-  for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (ent.name.startsWith(".")) continue;
-    if (ent.name === ".DS_Store" || ent.name === "Thumbs.db") continue;
-    // Mirror publish rules: skip symlinks
-    if (ent.isSymbolicLink()) continue;
-    const rel = base ? `${base}/${ent.name}` : ent.name;
-    const abs = path.join(dir, ent.name);
-    if (ent.isDirectory()) out.push(...walkFiles(abs, rel));
-    else if (ent.isFile()) {
-      const ext = path.extname(rel).toLowerCase();
-      if (!ALLOWED_EXT.has(ext)) {
-        fail(
-          `source skill has disallowed extension (should fail build): ${rel}`,
-        );
-      }
-      out.push({ rel, abs });
-    }
-  }
-  return out.sort((a, b) => a.rel.localeCompare(b.rel));
 }
 
 function cmpBytes(a, b, label) {
@@ -98,6 +62,11 @@ function extractTarGz(buf) {
       .toString("utf8")
       .replace(/\0.*$/, "")
       .trim();
+    const modeText = header
+      .subarray(100, 108)
+      .toString("utf8")
+      .replace(/\0.*$/, "")
+      .trim();
     const typeFlag = header[156];
     const prefix = header
       .subarray(345, 500)
@@ -105,16 +74,32 @@ function extractTarGz(buf) {
       .replace(/\0.*$/, "");
     const full = prefix ? `${prefix}/${name}` : name;
     const size = Number.parseInt(sizeText || "0", 8);
+    const mode = Number.parseInt(modeText || "0", 8);
     offset += 512;
     if (typeFlag === 0 || typeFlag === 48) {
-      map.set(full, tar.subarray(offset, offset + size));
+      map.set(full, { data: tar.subarray(offset, offset + size), mode });
     }
     offset += Math.ceil(size / 512) * 512;
   }
   return map;
 }
 
-function assertArchiveMatches(map, expected, label) {
+/** Per-entry path rules (plan §6) — same as skill-sources. */
+function assertArchiveEntryName(name, label) {
+  // skills.zip / skills.tar.gz use <skill>/<path>; per-skill archives are root paths
+  const parts = name.split("/");
+  const check =
+    parts.length >= 2 && /^[a-z0-9]+(-[a-z0-9]+)*$/.test(parts[0])
+      ? parts.slice(1).join("/")
+      : name;
+  try {
+    assertSafeSkillRelativePath(check);
+  } catch (e) {
+    fail(`${label}: bad archive entry ${JSON.stringify(name)}: ${e.message}`);
+  }
+}
+
+function assertArchiveMatches(map, expected, label, { modes } = {}) {
   const keys = [...map.keys()].sort();
   const expKeys = Object.keys(expected).sort();
   if (JSON.stringify(keys) !== JSON.stringify(expKeys)) {
@@ -123,24 +108,33 @@ function assertArchiveMatches(map, expected, label) {
     );
   }
   for (const k of keys) {
-    cmpBytes(map.get(k), expected[k], `${label}:${k}`);
+    assertArchiveEntryName(k, label);
+    const entry = map.get(k);
+    const data = entry?.data !== undefined ? entry.data : entry;
+    cmpBytes(data, expected[k], `${label}:${k}`);
+    if (modes && entry?.mode !== undefined && entry.mode !== 0o644) {
+      fail(`${label}:${k}: mode ${entry.mode.toString(8)} != 644`);
+    }
   }
 }
 
-const skills = listSkillDirs();
+const skills = listPublishableSkillDirs(repoRoot);
 if (skills.length === 0) fail("no skills found");
 
 const expectedBySkill = {};
 for (const name of skills) {
-  const files = walkFiles(path.join(repoRoot, name));
+  const walked = listSafeSkillFiles(path.join(repoRoot, name));
   expectedBySkill[name] = {};
-  for (const { rel, abs } of files) {
-    const src = fs.readFileSync(abs);
-    const dest = path.join(distDir, "skill", name, rel);
-    if (!fs.existsSync(dest)) fail(`missing raw file: skill/${name}/${rel}`);
+  for (const { relativePath, absolutePath } of walked) {
+    assertSafeSkillRelativePath(relativePath);
+    const src = fs.readFileSync(absolutePath);
+    const dest = path.join(distDir, "skill", name, relativePath);
+    if (!fs.existsSync(dest)) {
+      fail(`missing raw file: skill/${name}/${relativePath}`);
+    }
     const got = fs.readFileSync(dest);
-    cmpBytes(src, got, `raw skill/${name}/${rel}`);
-    expectedBySkill[name][rel] = src;
+    cmpBytes(src, got, `raw skill/${name}/${relativePath}`);
+    expectedBySkill[name][relativePath] = src;
   }
 }
 
@@ -158,6 +152,7 @@ for (const name of skills) {
     extractTarGz(fs.readFileSync(tarPath)),
     expectedBySkill[name],
     `${name}.tar.gz`,
+    { modes: true },
   );
 }
 
@@ -176,6 +171,7 @@ assertArchiveMatches(
   extractTarGz(fs.readFileSync(path.join(distDir, "skills.tar.gz"))),
   allExpected,
   "skills.tar.gz",
+  { modes: true },
 );
 
 const indexPath = path.join(
@@ -189,15 +185,15 @@ const discovery = readJson(indexPath);
 
 const skillsIndex = readJson(path.join(distDir, "skills.json"));
 if (skillsIndex.schema_version !== 1) fail("skills.json schema_version != 1");
-if ("github" in skillsIndex || "source" in skillsIndex || "generatedAt" in skillsIndex) {
+if (
+  "github" in skillsIndex ||
+  "source" in skillsIndex ||
+  "generatedAt" in skillsIndex
+) {
   fail("skills.json must not contain github/source/generatedAt");
 }
 const blob = JSON.stringify(skillsIndex);
-if (/"github"|generatedAt|"source":/.test(blob) && /"github"/.test(blob)) {
-  fail("skills.json contains forbidden github field text");
-}
 if (/\bgithub\b/i.test(blob)) {
-  // Allow nothing — v1 must be github-free
   fail("skills.json contains the substring 'github'");
 }
 
@@ -231,6 +227,7 @@ for (const entry of discovery.skills) {
 
 for (const s of skillsIndex.skills) {
   for (const f of s.files) {
+    assertSafeSkillRelativePath(f.path);
     const p = path.join(distDir, "skill", s.name, f.path);
     const buf = fs.readFileSync(p);
     if (buf.length !== f.size) fail(`size mismatch ${s.name}/${f.path}`);
@@ -238,6 +235,14 @@ for (const s of skillsIndex.skills) {
   }
   const zipBuf = fs.readFileSync(path.join(distDir, "skill", `${s.name}.zip`));
   if (sha256Hex(zipBuf) !== s.zip_sha256) fail(`zip_sha256 mismatch ${s.name}`);
+
+  const skillJsonPath = path.join(distDir, "skill", `${s.name}.json`);
+  if (!fs.existsSync(skillJsonPath)) fail(`missing /skill/${s.name}.json`);
+  const skillJson = readJson(skillJsonPath);
+  if (skillJson.name !== s.name) fail(`skill json name mismatch ${s.name}`);
+  if (skillJson.zip_sha256 !== s.zip_sha256) {
+    fail(`skill json zip_sha256 mismatch ${s.name}`);
+  }
 }
 
 const nameRe = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -259,6 +264,18 @@ for (const name of skills) {
   if (!validateDiscovery(scopedIdx)) {
     fail(`scoped discovery schema ${name}`);
   }
+  if (scopedIdx.skills.length !== 1 || scopedIdx.skills[0].name !== name) {
+    fail(`scoped discovery should contain only ${name}`);
+  }
+  const entry = scopedIdx.skills[0];
+  const urlPath = entry.url.startsWith("http")
+    ? new URL(entry.url).pathname
+    : entry.url;
+  const artifact = path.join(distDir, urlPath.replace(/^\//, ""));
+  const dig = `sha256:${sha256Hex(fs.readFileSync(artifact))}`;
+  if (dig !== entry.digest) {
+    fail(`scoped digest mismatch for ${name}: ${dig} != ${entry.digest}`);
+  }
 }
 
 for (const f of ["llms.txt", "llms-full.txt"]) {
@@ -278,9 +295,10 @@ for (const name of skills) {
       }
       if (ent.isDirectory()) walkDist(abs, rel);
       else if (ent.isFile()) {
+        assertSafeSkillRelativePath(rel);
         const ext = path.extname(rel).toLowerCase();
-        if (!ALLOWED_EXT.has(ext)) {
-          fail(`disallowed extension in dist: skill/${name}/${rel}`);
+        if (!/\.(md|txt|json|ya?ml|csv)$/i.test(rel)) {
+          fail(`disallowed extension in dist: skill/${name}/${rel} (${ext})`);
         }
       }
     }
