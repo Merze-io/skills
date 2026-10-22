@@ -7,6 +7,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { rehypeRewriteRelativeLinks } from "./src/lib/rehype-rewrite-relative-links.js";
 import { rehypeDemoteHeadings } from "./src/lib/rehype-demote-headings.js";
 import { rehypeFocusablePre } from "./src/lib/rehype-focusable-pre.js";
+import { distributionIntegration } from "./src/integrations/distribution.ts";
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -48,7 +49,7 @@ export default defineConfig({
   site: "https://skills.merze.ai",
   output: "static",
   trailingSlash: "always",
-  integrations: [sitemap()],
+  integrations: [sitemap(), distributionIntegration()],
   markdown: {
     remarkPlugins: [remarkGfm],
     rehypePlugins: [

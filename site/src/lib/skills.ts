@@ -187,14 +187,6 @@ export function skillFileUrl(slug: string, filePath = "SKILL.md"): string {
   return `/files/${encodeSkillFilePath(slug)}/${encodeSkillFilePath(filePath)}`;
 }
 
-/**
- * Generic install hint — download every published file for the skill from
- * this domain into the agent's skills folder.
- */
-export function installHint(slug: string): string {
-  return `Download every file under ${skillFileUrl(slug, "").replace(/\/$/, "")}/ into your agent's skills directory as ${slug}/.`;
-}
-
 /** Optional last-updated from Coolify/build env; omit when absent. */
 export function getSourceUpdatedAt(): string | null {
   const date =
