@@ -146,17 +146,17 @@
     display: block;
     width: 100%;
     text-align: left;
-    padding: 0.95rem 1.1rem;
+    height: 2.75rem;
+    padding: 0 1rem;
     border: 1px solid var(--color-border);
-    border-radius: 1rem;
+    border-radius: 0.75rem;
     background: var(--color-bg-elevated);
     color: var(--color-muted);
     font: inherit;
+    font-size: 0.9375rem;
     font-weight: 500;
     cursor: text;
-    box-shadow: var(--shadow-soft);
-    transition: border-color var(--motion) var(--ease-out),
-      box-shadow var(--motion) var(--ease-out);
+    transition: border-color var(--motion) var(--ease-out);
   }
   /* Author display:block would otherwise defeat the HTML hidden attribute */
   .pagefind-search__trigger[hidden] {
@@ -176,18 +176,54 @@
     display: none !important;
   }
   .pagefind-ui {
-    --pagefind-ui-scale: 0.92;
+    --pagefind-ui-scale: 0.65;
     --pagefind-ui-primary: #112e51;
     --pagefind-ui-text: #1a2332;
     --pagefind-ui-background: #ffffff;
     --pagefind-ui-border: #d7e0ec;
     --pagefind-ui-tag: #f3f6fb;
     --pagefind-ui-border-width: 1px;
-    --pagefind-ui-border-radius: 1rem;
+    --pagefind-ui-border-radius: 0.75rem;
     --pagefind-ui-font: "Rethink Sans", system-ui, sans-serif;
   }
+  /* Keep active field the same compact size as the trigger */
+  .pagefind-search .pagefind-ui .pagefind-ui__form:before {
+    width: 1rem;
+    height: 1rem;
+    top: 50%;
+    left: 0.85rem;
+    transform: translateY(-50%);
+  }
   .pagefind-search .pagefind-ui input.pagefind-ui__search-input {
+    height: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0 2.5rem 0 2.5rem;
+    font-size: 0.9375rem;
     font-weight: 500;
+    line-height: 1.25;
+    border-radius: 0.75rem;
+  }
+  .pagefind-search .pagefind-ui .pagefind-ui__search-clear {
+    top: 50%;
+    right: 0.25rem;
+    transform: translateY(-50%);
+    height: 2rem;
+    padding: 0 0.65rem;
+    font-size: 0.75rem;
+  }
+  .pagefind-search .pagefind-ui .pagefind-ui__drawer {
+    gap: 1rem;
+  }
+  .pagefind-search .pagefind-ui .pagefind-ui__results-area {
+    margin-top: 0.75rem;
+  }
+  .pagefind-search .pagefind-ui .pagefind-ui__message {
+    padding: 0.5rem 0;
+    font-size: 0.875rem;
+    height: auto;
+  }
+  .pagefind-search .pagefind-ui .pagefind-ui__result {
+    padding: 0.75rem 0;
   }
   .pagefind-ui .pagefind-ui__result-link {
     color: #112e51;
