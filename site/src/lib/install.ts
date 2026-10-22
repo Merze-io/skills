@@ -1,9 +1,5 @@
-/**
- * Single source of install snippets for /install, /install.md, skills.json,
- * skill-page tabs (redesign), and CI snippet replay.
- */
 import type { AgentInstall, InstallMethod } from "../data/agents";
-import { SITE_ORIGIN, absolute, tarUrl, zipUrl, rawUrl } from "./routes";
+import { SITE_ORIGIN, tarUrl, zipUrl, rawUrl } from "./routes";
 
 export type InstallSnippet = {
   method: InstallMethod;
@@ -12,7 +8,6 @@ export type InstallSnippet = {
   lang: "bash" | "powershell" | "text" | "markdown";
 };
 
-/** Canonical one-skill install (table §5.1 #9 / skills.json install.npx). */
 export function installCommand(name: string): string {
   return `npx skills add ${SITE_ORIGIN} --skill ${name}`;
 }
@@ -21,9 +16,9 @@ export function installCommandScoped(name: string): string {
   return `npx skills add ${SITE_ORIGIN}/skill/${name}`;
 }
 
-/** Install every skill from the catalog (`--all` = --skill '*' --agent '*' -y). */
+/** Every skill from the catalog (keeps the agent picker; not `--all`). */
 export function installCommandAll(): string {
-  return `npx skills add ${SITE_ORIGIN} --all`;
+  return `npx skills add ${SITE_ORIGIN} --skill '*'`;
 }
 
 export function curlTarSnippet(
@@ -40,11 +35,7 @@ export function powershellZipSnippet(
   return `$d="${destDir}"; $z="$env:TEMP\\${name}.zip"; New-Item -ItemType Directory -Force $d | Out-Null; Invoke-WebRequest ${SITE_ORIGIN}${zipUrl(name)} -OutFile $z -UseBasicParsing; Expand-Archive $z -DestinationPath $d -Force; Remove-Item $z`;
 }
 
-/**
- * Flat catalog archive → upload ZIP with top-level `<name>/SKILL.md`
- * (Claude.ai layout). Catalog `/skill/<name>.zip` stays flat for the CLI;
- * its entry mtimes remain fixed at 1980-01-01 in the site build.
- */
+/** Claude.ai upload layout: top-level `<name>/SKILL.md` (needs bash/curl/tar/zip). */
 export function wrappedZipBuildSnippet(name: string): string {
   return [
     `name=${name}`,
@@ -82,17 +73,12 @@ function userCurlDest(agent: AgentInstall, name: string): string {
 
 function userPowershellDest(agent: AgentInstall, name: string): string {
   const dest = userCurlDest(agent, name);
-  // PowerShell prefers $HOME\… ; keep forward slashes only for ~ expansion style
   if (dest.startsWith("~/")) {
     return `$HOME\\${dest.slice(2).replace(/\//g, "\\")}`;
   }
   return dest.replace(/\//g, "\\");
 }
 
-/**
- * Snippets for one skill + one agent. Used by /install HTML, /install.md,
- * and (later) skill-page tabs so every surface stays identical.
- */
 export function installSnippets(
   skill: { name: string },
   agent: AgentInstall,
@@ -105,7 +91,7 @@ export function installSnippets(
       const agentFlag = agent.cliAgent ? ` -a ${agent.cliAgent}` : "";
       out.push({
         method: "npx",
-        label: "npx skills",
+        label: "npx skills (project install)",
         code: `${installCommand(name)}${agentFlag}`,
         lang: "bash",
       });
@@ -114,7 +100,7 @@ export function installSnippets(
     if (method === "curl") {
       out.push({
         method: "curl",
-        label: "curl + tar",
+        label: "curl + tar (macOS/Linux, user install)",
         code: curlTarSnippet(name, userCurlDest(agent, name)),
         lang: "bash",
       });
@@ -123,7 +109,7 @@ export function installSnippets(
     if (method === "powershell") {
       out.push({
         method: "powershell",
-        label: "PowerShell (alternative; not yet verified on Windows)",
+        label: "PowerShell (alternative; not yet verified on Windows PowerShell 5.1)",
         code: powershellZipSnippet(name, userPowershellDest(agent, name)),
         lang: "powershell",
       });
@@ -132,15 +118,9 @@ export function installSnippets(
     if (method === "zip-upload") {
       out.push({
         method: "zip-upload",
-        label: "Upload zip (top-level <name>/ folder)",
+        label: "Upload zip (top-level skill folder; macOS/Linux)",
         code: wrappedZipBuildSnippet(name),
         lang: "bash",
-      });
-      out.push({
-        method: "zip-upload",
-        label: "Flat catalog zip (CLI layout)",
-        code: absolute(zipUrl(name)),
-        lang: "text",
       });
       continue;
     }
@@ -166,12 +146,11 @@ export function installSnippets(
   return out;
 }
 
-/** Markdown body for /install.md (llmstxt companion). */
 export function buildInstallMarkdown(
   skillNames: string[],
   agents: AgentInstall[],
 ): string {
-  const primary = skillNames[0] ?? "<name>";
+  const primary = skillNames[0] ?? "us-llc-state-cost";
   const lines: string[] = [
     "# Install Merze skills",
     "",
@@ -183,9 +162,9 @@ export function buildInstallMarkdown(
     installCommand(primary),
     "```",
     "",
-    "On Windows, prefer the same `npx` commands (Node 22.20+). PowerShell one-liners below are an alternative not yet verified on Windows.",
+    "On Windows, prefer the same `npx` commands (Node 22.20+; use `--copy` if symlinks are unavailable). PowerShell one-liners below are an alternative not yet verified on Windows PowerShell 5.1.",
     "",
-    "Every skill:",
+    "Every skill (keeps the agent picker):",
     "",
     "```bash",
     installCommandAll(),
@@ -218,7 +197,8 @@ export function buildInstallMarkdown(
     const snippets = installSnippets({ name: primary }, agent);
     for (const s of snippets) {
       lines.push(`### ${s.label}`, "");
-      const fence = s.lang === "powershell" ? "powershell" : s.lang === "text" ? "" : "bash";
+      const fence =
+        s.lang === "powershell" ? "powershell" : s.lang === "text" ? "" : "bash";
       if (s.lang === "text") {
         lines.push(s.code, "");
       } else {

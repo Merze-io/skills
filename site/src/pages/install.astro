@@ -1,8 +1,4 @@
 ---
-/**
- * Per-agent install guide. Semantic markup only — redesign owns visual tabs.
- * Every snippet is server-rendered so the page works with JS disabled.
- */
 import BaseLayout from "../layouts/BaseLayout.astro";
 import CopyButton from "../components/CopyButton.astro";
 import { AGENTS } from "../data/agents";
@@ -29,9 +25,10 @@ const primary = names[0] ?? "us-llc-state-cost";
     <p>
       Skills are published at <code>https://skills.merze.ai</code>. Prefer the
       skills CLI (<code>npx skills add</code>) on every OS, including Windows,
-      when you have Node 22.20+. Otherwise use curl/tar, or a Claude.ai zip
+      when you have Node 22.20+ (add <code>--copy</code> if symlinks are
+      unavailable). Otherwise use curl/tar (macOS/Linux), or a Claude.ai zip
       upload. PowerShell one-liners are an alternative not yet verified on
-      Windows. Machine-readable twin:
+      Windows PowerShell 5.1. Machine-readable twin:
       <a href="/install.md"><code>/install.md</code></a>.
     </p>
 
@@ -42,10 +39,10 @@ const primary = names[0] ?? "us-llc-state-cost";
         <pre tabindex="0"><code>{installCommand(primary)}</code></pre>
         <CopyButton text={installCommand(primary)} label="Copy npx install" />
       </div>
-      <p>Every skill on this catalog:</p>
+      <p>Every skill on this catalog (keeps the agent picker):</p>
       <div class="install-snippet">
         <pre tabindex="0"><code>{installCommandAll()}</code></pre>
-        <CopyButton text={installCommandAll()} label="Copy install all" />
+        <CopyButton text={installCommandAll()} label="Copy install all skills" />
       </div>
       <p>Scoped URL (uses the per-skill discovery index):</p>
       <div class="install-snippet">
@@ -113,7 +110,10 @@ const primary = names[0] ?? "us-llc-state-cost";
                   </h3>
                   <div class="install-snippet">
                     <pre tabindex="0"><code>{s.code}</code></pre>
-                    <CopyButton text={s.code} label={`Copy ${s.label}`} />
+                    <CopyButton
+                      text={s.code}
+                      label={`Copy ${agent.label} ${s.label}`}
+                    />
                   </div>
                 </div>
               );

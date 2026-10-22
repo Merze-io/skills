@@ -1,8 +1,3 @@
-/**
- * Per-agent install metadata for /install, /install.md, and skill tabs.
- * Paths and docs were checked against vendor docs; bump `verified` when re-checked.
- */
-
 export type AgentId =
   | "claude-code"
   | "claude-ai"
@@ -24,22 +19,15 @@ export type InstallMethod =
 export interface AgentInstall {
   id: AgentId;
   label: string;
-  /** Value for `npx skills add -a` when the CLI knows this agent. */
   cliAgent?: string;
   paths: { scope: "user" | "project"; path: string }[];
   methods: InstallMethod[];
-  /** Plain text only — no URLs (links go in docsUrl). */
   notes?: string;
-  /** Omitted for github-copilot so the site never links to github.com. */
+  /** Omitted for github-copilot — never link github.com from the site. */
   docsUrl?: string;
-  /** ISO date (YYYY-MM-DD) paths/docs were last checked. */
   verified: string;
 }
 
-/**
- * Display order for /install (and redesign tabs):
- * npx-first agents, then chat upload, then generic.
- */
 export const AGENTS: AgentInstall[] = [
   {
     id: "claude-code",
@@ -109,7 +97,7 @@ export const AGENTS: AgentInstall[] = [
     ],
     methods: ["npx", "curl", "powershell"],
     notes:
-      "Named for the coding agent only. This site does not link out to that vendor's documentation. Extra project paths that embed a disallowed host name are omitted here; use npx skills add -a github-copilot so the CLI places files correctly.",
+      "Named for the coding agent only. This site does not link out to that vendor's documentation. For project installs, use npx skills add … -a github-copilot.",
     // docsUrl intentionally omitted — never link github.com from the site
     verified: "2026-10-22",
   },
@@ -119,8 +107,8 @@ export const AGENTS: AgentInstall[] = [
     paths: [],
     methods: ["zip-upload"],
     notes:
-      "Upload under Customize → Skills. The upload ZIP must have a top-level <name>/ folder that contains SKILL.md (not SKILL.md at the archive root). Catalog /skill/<name>.zip stays flat for the skills CLI — re-wrap with the snippet below before uploading.",
-    docsUrl: "https://support.claude.com/en/articles/12512180-use-skills-in-claude",
+      "Upload under Customize → Skills (enable code execution and file creation under Settings → Capabilities). The upload ZIP must have a top-level folder named like the skill that contains SKILL.md (not SKILL.md at the archive root). Catalog per-skill zips stay flat for the skills CLI — re-wrap with the snippet below before uploading.",
+    docsUrl: "https://support.claude.com/en/articles/12512198-how-to-create-custom-skills",
     verified: "2026-10-22",
   },
   {
@@ -129,7 +117,8 @@ export const AGENTS: AgentInstall[] = [
     paths: [],
     methods: ["copy-text"],
     notes:
-      "No native skills install is documented here. Paste SKILL.md into a custom GPT’s Instructions or Knowledge. GPT Actions / OpenAPI come later.",
+      "On Business, Enterprise, Edu, and Healthcare plans, ChatGPT can upload a skill zip under Plugins → Skills → Create → Upload from your computer. On other plans, paste SKILL.md into a custom GPT’s Instructions or Knowledge. GPT Actions / OpenAPI come later.",
+    docsUrl: "https://help.openai.com/en/articles/20001066-skills-in-chatgpt",
     verified: "2026-10-22",
   },
   {
