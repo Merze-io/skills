@@ -44,6 +44,81 @@ jobs:
           grep -q 'class="heading-anchor"' dist/us-llc-state-cost/index.html
           grep -q 'id="skill-version-mandatory"' dist/us-llc-state-cost/index.html
           grep -q 'href="#skill-version-mandatory"' dist/us-llc-state-cost/index.html
+          test -f dist/files/us-llc-state-cost/SKILL.md
+          test -f dist/files/us-llc-state-cost/states.md
+
+      - name: Fail if dist contains disallowed github mentions
+        working-directory: site
+        run: |
+          # Single scanner (also runs at end of npm run build). Policy in DESIGN.md.
+          node scripts/scrub-github.mjs
+
+      - name: Skill file allowlist rejects svg and skips symlinks
+        working-directory: site
+        run: |
+          set -euo pipefail
+          SKILL="../_ci-files-security"
+          mkdir -p "$SKILL"
+          cat > "$SKILL/SKILL.md" <<'EOF'
+          ---
+          name: _ci-files-security
+          description: CI fixture for allowlist and symlink policy.
+          ---
+          # fixture
+          EOF
+          # Underscore folders are ignored by the publisher — use a real slug:
+          rm -rf "$SKILL"
+          BAD="../zz-files-security"
+          mkdir -p "$BAD"
+          cat > "$BAD/SKILL.md" <<'EOF'
+          ---
+          name: zz-files-security
+          description: CI fixture for allowlist and symlink policy.
+          ---
+          # fixture
+          EOF
+          printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n' > "$BAD/evil.svg"
+          # Symlink that would leak a secret if followed
+          printf 'SECRET=should-not-publish\n' > ../site/secret.env.ci
+          ln -s ../site/secret.env.ci "$BAD/notes.txt"
+          set +e
+          NO_COLOR=1 FORCE_COLOR=0 npm run build > /tmp/files-sec-build.log 2>&1
+          code=$?
+          set -e
+          rm -f ../site/secret.env.ci
+          rm -rf "$BAD"
+          sed -i 's/\x1b\[[0-9;]*[mK]//g' /tmp/files-sec-build.log
+          if [[ $code -eq 0 ]]; then
+            echo "Expected build to fail on disallowed evil.svg"
+            cat /tmp/files-sec-build.log
+            exit 1
+          fi
+          if ! grep -F 'Disallowed file' /tmp/files-sec-build.log; then
+            echo "Expected Disallowed file error"
+            cat /tmp/files-sec-build.log
+            exit 1
+          fi
+          echo "Disallowed svg correctly failed the build"
+          # Symlink-only fixture should succeed (symlink skipped, no svg)
+          GOOD="../zz-files-symlink-ok"
+          mkdir -p "$GOOD"
+          cat > "$GOOD/SKILL.md" <<'EOF'
+          ---
+          name: zz-files-symlink-ok
+          description: CI fixture proving symlinks are skipped.
+          ---
+          # fixture
+          EOF
+          printf 'SECRET=nope\n' > ../site/secret.env.ci
+          ln -s ../site/secret.env.ci "$GOOD/notes.txt"
+          npm run build
+          test ! -e dist/files/zz-files-symlink-ok/notes.txt
+          # Ensure secret never landed under dist/files
+          ! grep -R 'SECRET=nope' dist/files || { echo 'secret leaked'; exit 1; }
+          rm -rf "$GOOD" ../site/secret.env.ci
+          echo "Symlink skip OK"
+          # Restore clean dist for later steps
+          npm run build
 
       - name: Link check (local routes + #fragments)
         working-directory: site
@@ -206,32 +281,13 @@ jobs:
           rm -rf "$DRAFT"
           echo "_drafts ignored OK"
 
-      - name: Serve dist and run axe
+      - name: Axe at real viewports (320 / 360 / 1280)
         working-directory: site
         run: |
-          npx --yes serve@14.2.4 dist -l 4173 &
-          SERVE_PID=$!
-          trap 'kill $SERVE_PID 2>/dev/null || true' EXIT
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
-            sleep 0.5
-          done
-          AXE_PAGES=(
-            http://127.0.0.1:4173/
-            http://127.0.0.1:4173/us-llc-state-cost/
-            http://127.0.0.1:4173/us-llc-state-cost/states/
-            http://127.0.0.1:4173/about/
-            http://127.0.0.1:4173/404.html
-          )
-          npx --yes @axe-core/cli@4.10.1 "${AXE_PAGES[@]}" --exit
-          # Mobile width catch scrollable-region-focusable on overflowing <pre>/code
-          npx --yes @axe-core/cli@4.10.1 \
-            http://127.0.0.1:4173/ \
-            http://127.0.0.1:4173/us-llc-state-cost/ \
-            http://127.0.0.1:4173/us-llc-state-cost/states/ \
-            http://127.0.0.1:4173/about/ \
-            --chrome-options="window-size=360,800" \
-            --exit
+          npx puppeteer browsers install chrome
+          # Prove overflow assertion can fail, then run the real suite
+          npm run axe:viewports -- --self-test
+          npm run axe:viewports
 
   docker-smoke:
     runs-on: ubuntu-latest
@@ -270,4 +326,17 @@ jobs:
           echo "Location: $loc"
           echo "$loc" | grep -qv ':8080'
           echo "$loc" | grep -q 'us-llc-state-cost/'
+          # /files/ locked-down headers + plaintext markdown
+          files_headers=$(curl -sI http://127.0.0.1:18080/files/us-llc-state-cost/SKILL.md)
+          echo "$files_headers" | head -1 | grep -q '200'
+          echo "$files_headers" | grep -qi 'content-type: text/plain'
+          echo "$files_headers" | grep -qi 'charset=utf-8'
+          echo "$files_headers" | grep -qi 'x-content-type-options: nosniff'
+          echo "$files_headers" | grep -qi "content-security-policy:.*default-src 'none'"
+          echo "$files_headers" | grep -qi 'sandbox'
+          # Directory URL under /files/ must 404 (no listing / bare 403)
+          files_dir_code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/files/us-llc-state-cost/)
+          test "$files_dir_code" = "404"
+          # Supporting file also served
+          curl -sf http://127.0.0.1:18080/files/us-llc-state-cost/states.md | head -1 | grep -q .
           echo "Docker smoke OK"

@@ -4,10 +4,8 @@ Public Agent Skills for [Merze](https://merze.ai).
 
 ## Skills
 
-| Skill | Install |
+| Skill | Summary |
 | --- | --- |
 | [`us-llc-state-cost`](./us-llc-state-cost/) | US LLC formation vs year-2 keep-alive cost compare by state |
 
-```bash
-npx skills add Merze-io/skills --skill us-llc-state-cost
-```
+Browse and download skills at [skills.merze.ai](https://skills.merze.ai).

@@ -2,58 +2,132 @@
 import Icon from "./Icon.astro";
 
 interface Props {
-  text: string;
+  text?: string;
+  url?: string;
   label?: string;
 }
 
-const { text, label = "Copy install command" } = Astro.props;
+const { text = "", url, label = "Copy" } = Astro.props;
 ---
 
-<button
-  type="button"
-  class="btn btn--primary btn--sm copy-btn"
-  data-copy={text}
-  aria-label={label}
->
-  <span class="copy-btn__idle">
-    <Icon name="copy" size={16} />
-    {label}
-  </span>
-  <span class="copy-btn__done" hidden>
-    <Icon name="check" size={16} />
-    Copied
-  </span>
-</button>
+<div class="copy-control">
+  <button
+    type="button"
+    class="btn btn--secondary btn--sm copy-btn"
+    data-copy={text || undefined}
+    data-copy-url={url || undefined}
+    data-copy-label={label}
+  >
+    <span class="copy-btn__idle">
+      <Icon name="copy" size={16} />
+      <span data-copy-label-text>{label}</span>
+    </span>
+    <span class="copy-btn__done" hidden>
+      <Icon name="check" size={16} />
+      <span>Copied</span>
+    </span>
+    <span class="copy-btn__error" hidden>
+      <span>Copy failed</span>
+    </span>
+  </button>
+  <span class="sr-only" role="status" aria-live="polite" data-copy-status
+  ></span>
+</div>
 
 <script>
+  function textResolver(btn: HTMLButtonElement): () => Promise<string> {
+    const url = btn.dataset.copyUrl;
+    if (url) {
+      return async () => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("download failed");
+        return await res.text();
+      };
+    }
+    const direct = btn.dataset.copy ?? "";
+    return async () => direct;
+  }
+
+  async function copyValue(btn: HTMLButtonElement): Promise<boolean> {
+    const getText = textResolver(btn);
+    try {
+      if (navigator.clipboard && "ClipboardItem" in window) {
+        const item = new ClipboardItem({
+          "text/plain": getText().then(
+            (t) => new Blob([t], { type: "text/plain" }),
+          ),
+        });
+        await navigator.clipboard.write([item]);
+        return true;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(await getText());
+        return true;
+      }
+    } catch {
+      /* fall through to execCommand */
+    }
+    try {
+      const value = await getText();
+      const ta = document.createElement("textarea");
+      ta.value = value;
+      ta.readOnly = true;
+      ta.style.cssText = "position:fixed;opacity:0";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return Boolean(ok);
+    } catch {
+      return false;
+    }
+  }
+
+  function setStatus(btn: HTMLButtonElement, kind: "ok" | "err" | "reset") {
+    const idle = btn.querySelector<HTMLElement>(".copy-btn__idle");
+    const done = btn.querySelector<HTMLElement>(".copy-btn__done");
+    const err = btn.querySelector<HTMLElement>(".copy-btn__error");
+    const status = btn.parentElement?.querySelector<HTMLElement>(
+      "[data-copy-status]",
+    );
+    const label = btn.dataset.copyLabel ?? "Copy";
+    if (!idle || !done || !err) return;
+
+    if (kind === "ok") {
+      idle.hidden = true;
+      done.hidden = false;
+      err.hidden = true;
+      if (status) status.textContent = "Copied";
+      window.setTimeout(() => setStatus(btn, "reset"), 1600);
+      return;
+    }
+    if (kind === "err") {
+      idle.hidden = true;
+      done.hidden = true;
+      err.hidden = false;
+      if (status) status.textContent = "Copy failed";
+      window.setTimeout(() => setStatus(btn, "reset"), 2200);
+      return;
+    }
+    idle.hidden = false;
+    done.hidden = true;
+    err.hidden = true;
+    if (status) status.textContent = "";
+    const labelEl = btn.querySelector("[data-copy-label-text]");
+    if (labelEl) labelEl.textContent = label;
+  }
+
   function bindCopyButtons() {
-    document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
-      if (btn.dataset.bound) return;
-      btn.dataset.bound = "1";
-      btn.addEventListener("click", async () => {
-        const value = btn.dataset.copy ?? "";
-        try {
-          await navigator.clipboard.writeText(value);
-        } catch {
-          const ta = document.createElement("textarea");
-          ta.value = value;
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          ta.remove();
-        }
-        const idle = btn.querySelector<HTMLElement>(".copy-btn__idle");
-        const done = btn.querySelector<HTMLElement>(".copy-btn__done");
-        if (idle && done) {
-          idle.hidden = true;
-          done.hidden = false;
-          window.setTimeout(() => {
-            idle.hidden = false;
-            done.hidden = true;
-          }, 1600);
-        }
+    document
+      .querySelectorAll<HTMLButtonElement>("[data-copy], [data-copy-url]")
+      .forEach((btn) => {
+        if (btn.dataset.bound) return;
+        btn.dataset.bound = "1";
+        btn.addEventListener("click", async () => {
+          const ok = await copyValue(btn);
+          setStatus(btn, ok ? "ok" : "err");
+        });
       });
-    });
   }
   bindCopyButtons();
   document.addEventListener("astro:page-load", bindCopyButtons);

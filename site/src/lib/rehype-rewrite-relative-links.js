@@ -4,7 +4,7 @@ import path from "node:path";
 /**
  * Rewrite relative links/images in skill markdown.
  * Sibling .md → rendered sub-page; cross-skill ../ paths → other skill URLs;
- * other paths → GitHub blob/raw.
+ * other relative files → same-origin /files/<skill>/… downloads.
  */
 export function rehypeRewriteRelativeLinks() {
   return (tree, file) => {
@@ -57,6 +57,11 @@ function toSitePath(skill, file, hashSuffix) {
   return `/${skill}/${fileSlug}/${hashSuffix}`;
 }
 
+function fileDownloadPath(skill, filePath) {
+  const cleaned = String(filePath).replace(/^\/+/, "");
+  return `/files/${skill}/${cleaned}`;
+}
+
 function rewriteHref(href, slug) {
   if (
     href.startsWith("http://") ||
@@ -75,9 +80,9 @@ function rewriteHref(href, slug) {
   // Resolve against the current skill directory (posix)
   const resolved = path.posix.normalize(`${slug}/${cleaned}`);
 
-  // Escaped the repo root of skills → GitHub
+  // Escaped the repo root — keep on-site as a file download under this skill
   if (resolved.startsWith("..") || path.posix.isAbsolute(resolved)) {
-    return `https://github.com/Merze-io/skills/blob/main/${slug}/${cleaned}${hashSuffix}`;
+    return `${fileDownloadPath(slug, cleaned)}${hashSuffix}`;
   }
 
   const parts = resolved.split("/").filter(Boolean);
@@ -88,18 +93,16 @@ function rewriteHref(href, slug) {
   const targetSkill = parts[0];
   const rest = parts.slice(1).join("/");
 
-  if (/\.md$/i.test(rest) || parts.length === 1 && /\.md$/i.test(targetSkill)) {
-    // e.g. other-skill/SKILL.md or just resolved to skill/file.md
+  if (/\.md$/i.test(rest) || (parts.length === 1 && /\.md$/i.test(targetSkill))) {
     if (parts.length === 1 && /\.md$/i.test(targetSkill)) {
-      // shouldn't happen for normalize(`${slug}/file.md`)
       return toSitePath(slug, targetSkill, hashSuffix);
     }
     return toSitePath(targetSkill, rest, hashSuffix);
   }
 
-  // Non-markdown relative file → GitHub blob under the resolved skill
+  // Non-markdown relative file → same-origin download
   if (rest) {
-    return `https://github.com/Merze-io/skills/blob/main/${targetSkill}/${rest}${hashSuffix}`;
+    return `${fileDownloadPath(targetSkill, rest)}${hashSuffix}`;
   }
 
   return `/${targetSkill}/${hashSuffix}`;
@@ -117,7 +120,11 @@ function rewriteImgSrc(src, slug) {
   const cleaned = src.replace(/^\.\//, "");
   const resolved = path.posix.normalize(`${slug}/${cleaned}`);
   if (resolved.startsWith("..")) {
-    return `https://raw.githubusercontent.com/Merze-io/skills/main/${slug}/${cleaned}`;
+    return fileDownloadPath(slug, cleaned);
   }
-  return `https://raw.githubusercontent.com/Merze-io/skills/main/${resolved}`;
+  const parts = resolved.split("/").filter(Boolean);
+  if (parts.length < 2) return fileDownloadPath(slug, cleaned);
+  const targetSkill = parts[0];
+  const rest = parts.slice(1).join("/");
+  return fileDownloadPath(targetSkill, rest);
 }

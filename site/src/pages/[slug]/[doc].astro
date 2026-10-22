@@ -5,8 +5,7 @@ import Icon from "../../components/Icon.astro";
 import {
   getAllSkills,
   getSupportingFiles,
-  githubBlobUrl,
-  githubEditUrl,
+  skillFileUrl,
   skillSlug,
   supportingFileSlug,
 } from "../../lib/skills";
@@ -34,6 +33,7 @@ const slug = skillSlug(skill);
 const { Content } = await render(supporting);
 const toc = extractToc(supporting.body ?? "");
 const title = `${fileSlug}.md · ${skill.data.name}`;
+const downloadUrl = skillFileUrl(slug, `${fileSlug}.md`);
 ---
 
 <BaseLayout
@@ -41,29 +41,19 @@ const title = `${fileSlug}.md · ${skill.data.name}`;
   description={`Supporting file ${fileSlug}.md for ${skill.data.name}`}
   canonicalPath={`/${slug}/${fileSlug}/`}
 >
-  <article data-pagefind-body>
-    <p>
+  <article data-pagefind-body class="skill-detail">
+    <p class="back-row">
       <a href={`/${slug}/`} class="back-link">
         <Icon name="arrow-left" size={16} />
         {skill.data.name}
       </a>
     </p>
-    <header>
+    <header class="skill-detail__header">
       <h1>{fileSlug}.md</h1>
       <div class="skill-meta">
-        <a
-          href={githubBlobUrl(slug, `${fileSlug}.md`)}
-          rel="noopener noreferrer"
-        >
-          <Icon name="github" size={16} />
-          View source on GitHub
-        </a>
-        <a
-          href={githubEditUrl(slug, `${fileSlug}.md`)}
-          rel="noopener noreferrer"
-        >
-          <Icon name="external" size={16} />
-          Edit
+        <a class="btn btn--secondary btn--sm" href={downloadUrl} download>
+          <Icon name="download" size={16} />
+          Download
         </a>
       </div>
     </header>

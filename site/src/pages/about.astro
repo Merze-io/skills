@@ -4,10 +4,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 
 <BaseLayout
   title="About"
-  description="What Agent Skills are, how to install them, and how to contribute to Merze-io/skills."
+  description="What Agent Skills are and how to install them from skills.merze.ai."
   canonicalPath="/about/"
 >
-  <article class="prose">
+  <article class="prose about-page">
     <h1>About Agent Skills</h1>
     <p>
       Agent Skills are folders of instructions that coding agents can load on
@@ -16,21 +16,21 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     </p>
 
     <h2>Install a skill</h2>
-    <p>From the catalog detail page, copy the install command:</p>
-    <pre tabindex="0"><code>npx skills add Merze-io/skills --skill &lt;slug&gt;</code></pre>
     <p>
-      Or browse the source on
-      <a href="https://github.com/Merze-io/skills">GitHub</a>.
+      Open any skill in the catalog. Download every listed file (or copy the
+      install command) and place them under
+      <code>&lt;slug&gt;/</code> in your agent’s skills directory, then reload
+      the agent so it discovers the skill.
     </p>
 
-    <h2>Contribute a skill</h2>
-    <ol>
+    <h2>Skill layout</h2>
+    <ul>
       <li>
-        Create a folder at the repo root named with the skill slug
-        (lowercase letters, digits, and hyphens; max 64 characters).
+        Folder at the catalog root named with the skill slug (lowercase
+        letters, digits, and hyphens; max 64 characters).
       </li>
       <li>
-        Add <code>SKILL.md</code> with required frontmatter:
+        <code>SKILL.md</code> with required frontmatter:
         <ul>
           <li><code>name</code> — must match the folder name</li>
           <li><code>description</code> — 1–1024 characters</li>
@@ -40,19 +40,22 @@ import BaseLayout from "../layouts/BaseLayout.astro";
           </li>
         </ul>
       </li>
-      <li>Open a pull request to <code>main</code>.</li>
-    </ol>
+      <li>
+        Optional supporting markdown (and allowlisted text/data files) published
+        beside <code>SKILL.md</code>.
+      </li>
+    </ul>
     <p>
       This site rebuilds from every root <code>*/SKILL.md</code>. Invalid
-      <code>name</code> or <code>description</code>, or a name/folder mismatch,
-      fails the build.
+      <code>name</code> or <code>description</code>, a name/folder mismatch, or
+      a disallowed file type in a skill folder fails the build.
     </p>
 
     <h2>Merze</h2>
     <p>
       Skills are published by
-      <a href="https://merze.ai">Merze</a>. Questions or contributions welcome
-      via GitHub pull requests.
+      <a href="https://merze.ai">Merze</a>. For contributions or questions,
+      contact Merze through <a href="https://merze.ai">merze.ai</a>.
     </p>
   </article>
 </BaseLayout>

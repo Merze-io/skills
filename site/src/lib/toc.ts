@@ -9,6 +9,7 @@ export type TocItem = {
 /**
  * Mirror rehypeDemoteHeadings: drop leading H1, then assign depths that
  * never skip a level under the page h1.
+ * Uses github-slugger so TOC hrefs match rehype-slug heading ids.
  */
 export function extractToc(markdown: string): TocItem[] {
   const slugger = new GithubSlugger();
