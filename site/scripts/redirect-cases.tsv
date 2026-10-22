@@ -4,6 +4,10 @@
 /about/	301	/about
 /about/index.html	301	/about
 /about/?x=1	301	/about?x=1
+/install	200	
+/install/	301	/install
+/install/index.html	301	/install
+/install.md	200	
 /healthz	200	
 /skills.json	200	
 /%5Cevil.com/	404	

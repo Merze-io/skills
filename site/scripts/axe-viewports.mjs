@@ -25,6 +25,7 @@ const PAGES = [
   "/",
   "/skill/us-llc-state-cost",
   "/skill/us-llc-state-cost/states",
+  "/install",
   "/about",
   "/404.html",
   "/no-such-page",

@@ -200,6 +200,9 @@ export function skillFileUrl(slug: string, filePath = "SKILL.md"): string {
   return `/skill/${encodeSkillFilePath(slug)}/${encodeSkillFilePath(filePath)}`;
 }
 
+/** Canonical CLI install for a skill (domain source — not a Git host). */
+export { installCommand } from "./install";
+
 export function formatUpdated(iso: string | null): string | null {
   if (!iso) return null;
   const d = new Date(iso);

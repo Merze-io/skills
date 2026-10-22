@@ -1,0 +1,144 @@
+---
+/**
+ * Per-agent install guide. Semantic markup only — redesign owns visual tabs.
+ * Every snippet is server-rendered so the page works with JS disabled.
+ */
+import BaseLayout from "../layouts/BaseLayout.astro";
+import CopyButton from "../components/CopyButton.astro";
+import { AGENTS } from "../data/agents";
+import {
+  installCommand,
+  installCommandAll,
+  installCommandScoped,
+  installSnippets,
+} from "../lib/install";
+import { getAllSkills, skillSlug } from "../lib/skills";
+
+const skills = await getAllSkills();
+const names = skills.map(skillSlug).sort((a, b) => a.localeCompare(b, "en"));
+const primary = names[0] ?? "us-llc-state-cost";
+---
+
+<BaseLayout
+  title="Install"
+  description="Install Merze agent skills with npx skills, curl/tar, PowerShell, or zip upload — no Git host required."
+  canonicalPath="/install"
+>
+  <article class="prose about-page">
+    <h1>Install</h1>
+    <p>
+      Skills are published at <code>https://skills.merze.ai</code>. Prefer the
+      skills CLI when you have Node 22.20+. Otherwise use curl/tar, PowerShell,
+      or a zip upload. Machine-readable twin:
+      <a href="/install.md"><code>/install.md</code></a>.
+    </p>
+
+    <section aria-labelledby="quick-start-heading">
+      <h2 id="quick-start-heading">Quick start</h2>
+      <p>One skill (example: <code>{primary}</code>):</p>
+      <div class="install-snippet">
+        <pre tabindex="0"><code>{installCommand(primary)}</code></pre>
+        <CopyButton text={installCommand(primary)} label="Copy npx install" />
+      </div>
+      <p>Every skill on this catalog:</p>
+      <div class="install-snippet">
+        <pre tabindex="0"><code>{installCommandAll()}</code></pre>
+        <CopyButton text={installCommandAll()} label="Copy install all" />
+      </div>
+      <p>Scoped URL (uses the per-skill discovery index):</p>
+      <div class="install-snippet">
+        <pre tabindex="0"><code>{installCommandScoped(primary)}</code></pre>
+        <CopyButton
+          text={installCommandScoped(primary)}
+          label="Copy scoped npx install"
+        />
+      </div>
+      {
+        names.length > 1 && (
+          <p>
+            Skills in this catalog:{" "}
+            {names.map((n, i) => (
+              <>
+                {i > 0 && ", "}
+                <a href={`/skill/${n}`}>
+                  <code>{n}</code>
+                </a>
+              </>
+            ))}
+            .
+          </p>
+        )
+      }
+    </section>
+
+    {
+      AGENTS.map((agent) => {
+        const snippets = installSnippets({ name: primary }, agent);
+        const headingId = `install-${agent.id}`;
+        return (
+          <section aria-labelledby={headingId} id={`section-${agent.id}`}>
+            <h2 id={headingId}>{agent.label}</h2>
+            {agent.notes && <p>{agent.notes}</p>}
+            {agent.paths.length > 0 && (
+              <>
+                <p>Skill directories:</p>
+                <ul>
+                  {agent.paths.map((p) => (
+                    <li>
+                      <span>{p.scope}:</span> <code>{p.path}</code>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {agent.docsUrl && (
+              <p>
+                Docs:{" "}
+                <a href={agent.docsUrl} rel="noopener noreferrer">
+                  {agent.docsUrl.replace(/^https:\/\//, "")}
+                </a>
+              </p>
+            )}
+            <p>
+              Verified <time datetime={agent.verified}>{agent.verified}</time>
+            </p>
+            {snippets.map((s, idx) => {
+              const snipId = `${headingId}-${s.method}-${idx}`;
+              return (
+                <div class="install-method" id={snipId}>
+                  <h3 class="install-method__title" id={`${snipId}-title`}>
+                    {s.label}
+                  </h3>
+                  <div class="install-snippet">
+                    <pre tabindex="0"><code>{s.code}</code></pre>
+                    <CopyButton text={s.code} label={`Copy ${s.label}`} />
+                  </div>
+                </div>
+              );
+            })}
+          </section>
+        );
+      })
+    }
+
+    <section aria-labelledby="machine-heading">
+      <h2 id="machine-heading">Machine-readable</h2>
+      <ul>
+        <li>
+          <a href="/skills.json"><code>/skills.json</code></a>
+        </li>
+        <li>
+          <a href="/.well-known/agent-skills/index.json"
+            ><code>/.well-known/agent-skills/index.json</code></a
+          >
+        </li>
+        <li>
+          <a href="/install.md"><code>/install.md</code></a>
+        </li>
+        <li>
+          <a href="/llms.txt"><code>/llms.txt</code></a>
+        </li>
+      </ul>
+    </section>
+  </article>
+</BaseLayout>

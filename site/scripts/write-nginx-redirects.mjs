@@ -45,6 +45,10 @@ const cases = [
   "/about/\t301\t/about",
   "/about/index.html\t301\t/about",
   "/about/?x=1\t301\t/about?x=1",
+  "/install\t200\t",
+  "/install/\t301\t/install",
+  "/install/index.html\t301\t/install",
+  "/install.md\t200\t",
   "/healthz\t200\t",
   "/skills.json\t200\t",
   // Open-redirect probes — must 404 (never 301 with \\, TAB, CR, LF, or //)

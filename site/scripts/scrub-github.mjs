@@ -4,7 +4,8 @@
  *
  * Policy (documented in site/DESIGN.md):
  * - Scrub Pagefind UI translator credit URLs first.
- * - Allowlist ONLY the literal term "github-copilot".
+ * - Allowlist ONLY the agent id/label: "github-copilot" and "GitHub Copilot"
+ *   (matched as /github[- ]copilot/i). No github.com hrefs.
  * - Fail closed: every other hit in any dist file (text, indexes, wasm,
  *   images including PNG zTXt/iTXt, fonts) fails the build — including skill
  *   content under dist/skill/ raw trees.
@@ -33,7 +34,8 @@ function walk(dir, out = []) {
 }
 
 function stripAllowedMentions(text) {
-  return text.replace(/github-copilot/gi, "");
+  // Agent id + human label from /install (never github.com URLs).
+  return text.replace(/github[- ]copilot/gi, "");
 }
 
 function containsGithub(text) {
@@ -194,7 +196,7 @@ if (scrubbed) {
 if (offenders.length) {
   console.error("dist/ still contains disallowed 'github' mentions:");
   for (const o of offenders) console.error(" ", o);
-  console.error("Allowed: literal 'github-copilot' only.");
+  console.error("Allowed: 'github-copilot' / 'GitHub Copilot' only.");
   process.exit(1);
 }
 

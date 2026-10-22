@@ -17,6 +17,7 @@ import {
   zipUrl,
 } from "./routes";
 import { readSkillDates } from "./skill-dates";
+import { skillsJsonInstallBlock } from "./install";
 import { buildTarGz, buildZip, type ArchiveFile } from "./zip";
 
 export const DISCOVERY_SCHEMA =
@@ -282,21 +283,6 @@ export function loadSkillBundle(
   };
 }
 
-function installBlock(name: string): {
-  npx: string;
-  npx_scoped: string;
-  curl: string;
-  powershell: string;
-} {
-  const origin = SITE_ORIGIN;
-  return {
-    npx: `npx skills add ${origin} --skill ${name}`,
-    npx_scoped: `npx skills add ${origin}/skill/${name}`,
-    curl: `mkdir -p ~/.agents/skills/${name} && curl -fsSL ${origin}/skill/${name}.tar.gz | tar -xz -C ~/.agents/skills/${name}`,
-    powershell: `$d="$HOME\\.agents\\skills\\${name}"; $z="$env:TEMP\\${name}.zip"; New-Item -ItemType Directory -Force $d | Out-Null; Invoke-WebRequest ${origin}/skill/${name}.zip -OutFile $z -UseBasicParsing; Expand-Archive $z -DestinationPath $d -Force; Remove-Item $z`,
-  };
-}
-
 function skillIndexEntry(b: SkillBundle) {
   return {
     name: b.name,
@@ -321,7 +307,7 @@ function skillIndexEntry(b: SkillBundle) {
       sha256: f.sha256,
       media_type: f.mediaType,
     })),
-    install: installBlock(b.name),
+    install: skillsJsonInstallBlock(b.name),
   };
 }
 
@@ -335,8 +321,7 @@ export function buildSkillsIndexJson(
     site: {
       name: "Merze Skills",
       url: SITE_ORIGIN,
-      // /install lands in PR-3; /about is the live install/contribute page today
-      install_docs: `${SITE_ORIGIN}/about`,
+      install_docs: `${SITE_ORIGIN}/install`,
       discovery: absolute(discoveryIndexPath()),
       all_zip: absolute(allZipUrl()),
       all_tar_gz: absolute(allTarUrl()),
@@ -401,8 +386,12 @@ export function buildLlmsTxt(bundles: SkillBundle[]): string {
       `- [${b.title}](${absolute(rawUrl(b.name, "SKILL.md"))}): ${desc}`,
     );
   }
-  // /install.md is PR-3; until then point humans at /about (no Install section with 404s)
   lines.push(
+    "",
+    "## Install",
+    "",
+    `- [Install guide (markdown)](${SITE_ORIGIN}/install.md)`,
+    `- [Install guide (HTML)](${SITE_ORIGIN}/install)`,
     "",
     "## Machine-readable",
     "",

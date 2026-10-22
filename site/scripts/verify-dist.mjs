@@ -3,8 +3,12 @@
  * Verify distribution artifacts under site/dist against skill sources and schemas.
  */
 import { createHash } from "node:crypto";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
+import http from "node:http";
+import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 import { unzipSync } from "fflate";
@@ -14,6 +18,8 @@ import {
   listPublishableSkillDirs,
   listSafeSkillFiles,
 } from "../src/lib/skill-sources.mjs";
+
+const execFileAsync = promisify(execFile);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(__dirname, "..");
@@ -322,6 +328,134 @@ for (const name of skills) {
   walkDist(skillDist);
 }
 
+// --- PR-3: install surfaces + curl/tar byte-identical replay ---
+const SITE_ORIGIN = "https://skills.merze.ai";
+
+if (skillsIndex.site?.install_docs !== `${SITE_ORIGIN}/install`) {
+  fail(
+    `skills.json install_docs must be ${SITE_ORIGIN}/install (got ${skillsIndex.site?.install_docs})`,
+  );
+}
+
+const installHtmlPath = path.join(distDir, "install", "index.html");
+const installMdPath = path.join(distDir, "install.md");
+if (!fs.existsSync(installHtmlPath)) fail("missing dist/install/index.html");
+if (!fs.existsSync(installMdPath)) fail("missing dist/install.md");
+
+const installHtml = fs.readFileSync(installHtmlPath, "utf8");
+const installMd = fs.readFileSync(installMdPath, "utf8");
+
+for (const s of skillsIndex.skills) {
+  const inst = s.install;
+  if (!inst?.npx || !inst?.npx_scoped || !inst?.curl || !inst?.powershell) {
+    fail(`skills.json install block incomplete for ${s.name}`);
+  }
+  const expectNpx = `npx skills add ${SITE_ORIGIN} --skill ${s.name}`;
+  const expectScoped = `npx skills add ${SITE_ORIGIN}/skill/${s.name}`;
+  const expectCurl = `mkdir -p ~/.agents/skills/${s.name} && curl -fsSL ${SITE_ORIGIN}/skill/${s.name}.tar.gz | tar -xz -C ~/.agents/skills/${s.name}`;
+  if (inst.npx !== expectNpx) fail(`install.npx mismatch for ${s.name}`);
+  if (inst.npx_scoped !== expectScoped) {
+    fail(`install.npx_scoped mismatch for ${s.name}`);
+  }
+  if (inst.curl !== expectCurl) fail(`install.curl mismatch for ${s.name}`);
+  if (!inst.powershell.includes(`${SITE_ORIGIN}/skill/${s.name}.zip`)) {
+    fail(`install.powershell missing zip URL for ${s.name}`);
+  }
+  // Snippets must appear identically in HTML, markdown, and skills.json.
+  // Astro escapes `&` in HTML (`&&` → `&amp;&amp;`), so unescape before compare.
+  const htmlPlain = installHtml
+    .replace(/&amp;/g, "&")
+    .replace(/&#38;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"');
+  for (const snippet of [inst.npx, inst.npx_scoped, inst.curl]) {
+    if (!htmlPlain.includes(snippet)) {
+      fail(`install HTML missing snippet: ${snippet.slice(0, 60)}…`);
+    }
+    if (!installMd.includes(snippet)) {
+      fail(`install.md missing snippet: ${snippet.slice(0, 60)}…`);
+    }
+  }
+  if (!installHtml.includes("github-copilot") && !installHtml.includes("GitHub Copilot")) {
+    fail("install HTML must document github-copilot / GitHub Copilot");
+  }
+  if (/href=["'][^"']*github\.com/i.test(installHtml)) {
+    fail("install HTML must not link to github.com");
+  }
+}
+
+// Replay skills.json curl (tar) snippets against dist/; require byte-identical files.
+// Must use async exec so the local HTTP server can answer while curl runs
+// (execFileSync would block the event loop and hang the download).
+{
+  const server = http.createServer((req, res) => {
+    const urlPath = decodeURIComponent((req.url || "/").split("?")[0]);
+    const filePath = path.join(
+      distDir,
+      urlPath === "/" ? "index.html" : urlPath.replace(/^\//, ""),
+    );
+    if (
+      !filePath.startsWith(distDir) ||
+      !fs.existsSync(filePath) ||
+      !fs.statSync(filePath).isFile()
+    ) {
+      res.writeHead(404);
+      res.end("not found");
+      return;
+    }
+    const buf = fs.readFileSync(filePath);
+    res.writeHead(200, {
+      "Content-Type": "application/octet-stream",
+      "Content-Length": buf.length,
+    });
+    res.end(buf);
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = /** @type {import('node:net').AddressInfo} */ (server.address());
+  const origin = `http://127.0.0.1:${port}`;
+  try {
+    for (const s of skillsIndex.skills) {
+      const tmp = fs.mkdtempSync(path.join(os.tmpdir(), `verify-curl-${s.name}-`));
+      const dest = path.join(tmp, s.name);
+      fs.mkdirSync(dest, { recursive: true });
+      const script = s.install.curl
+        .replaceAll(SITE_ORIGIN, origin)
+        .replaceAll(`~/.agents/skills/${s.name}`, dest);
+      await execFileAsync("bash", ["-lc", script], { timeout: 30_000 });
+      for (const f of s.files) {
+        const got = path.join(dest, f.path);
+        const want = path.join(distDir, "skill", s.name, f.path);
+        if (!fs.existsSync(got)) fail(`curl/tar missing ${s.name}/${f.path}`);
+        cmpBytes(
+          fs.readFileSync(got),
+          fs.readFileSync(want),
+          `curl/tar ${s.name}/${f.path}`,
+        );
+      }
+      // Zip the powershell snippet downloads (Expand-Archive equivalent on Linux)
+      const zipBuf = fs.readFileSync(path.join(distDir, "skill", `${s.name}.zip`));
+      const zipMap = extractZip(zipBuf);
+      for (const f of s.files) {
+        if (!zipMap.has(f.path)) fail(`zip missing ${s.name}/${f.path}`);
+        cmpBytes(
+          zipMap.get(f.path),
+          fs.readFileSync(path.join(distDir, "skill", s.name, f.path)),
+          `zip ${s.name}/${f.path}`,
+        );
+      }
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+    console.log(
+      `verify-dist: curl/tar + zip snippets byte-identical for ${skillsIndex.skills.length} skill(s)`,
+    );
+  } catch (err) {
+    server.close();
+    fail(`install snippet replay: ${err?.message || err}`);
+  }
+  await new Promise((resolve) => server.close(resolve));
+}
+
 console.log(
-  `verify-dist: OK (${skills.length} skill(s), discovery + skills.json validated)`,
+  `verify-dist: OK (${skills.length} skill(s), discovery + skills.json + install validated)`,
 );
