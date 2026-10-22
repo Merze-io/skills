@@ -151,9 +151,6 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
     const root = document.querySelector("[data-skills-filters]");
     if (!root) return;
 
-    const loading = document.querySelector<HTMLElement>("[data-loading-state]");
-    if (loading) loading.hidden = false;
-
     const categories = selectedValues("[data-filter=category]");
     const tags = selectedValues("[data-filter=tag]");
     const versions = selectedValues("[data-filter=version]");
@@ -203,11 +200,16 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
       status.textContent = `${visible} skill${visible === 1 ? "" : "s"} shown`;
     }
 
-    if (loading) {
-      window.requestAnimationFrame(() => {
-        loading.hidden = true;
-      });
-    }
+    const loading = document.querySelector<HTMLElement>("[data-loading-state]");
+    if (loading) loading.hidden = true;
+  }
+
+  function applyFiltersWithLoading() {
+    const loading = document.querySelector<HTMLElement>("[data-loading-state]");
+    if (loading) loading.hidden = false;
+    window.requestAnimationFrame(() => {
+      applyFilters();
+    });
   }
 
   function clearFilters() {
@@ -225,8 +227,8 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
     const root = document.querySelector("[data-skills-filters]");
     if (!root || (root as HTMLElement).dataset.ready) return;
     (root as HTMLElement).dataset.ready = "1";
-    root.addEventListener("input", applyFilters);
-    root.addEventListener("change", applyFilters);
+    root.addEventListener("input", applyFiltersWithLoading);
+    root.addEventListener("change", applyFiltersWithLoading);
     document
       .querySelector("[data-clear-filters]")
       ?.addEventListener("click", clearFilters);
