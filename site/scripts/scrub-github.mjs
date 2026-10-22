@@ -4,12 +4,9 @@
  *
  * Policy (documented in site/DESIGN.md):
  * - Scrub Pagefind UI translator credit URLs first.
- * - Allowlist ONLY:
- *   1) Pagefind's own runtime under dist/pagefind/*.{js,wasm} if they still
- *      contain "github" after scrub (third-party credits we cannot remove),
- *   2) the literal term "github-copilot".
- * - Any other hit — including skill content under dist/files/ — fails the build.
- * - Scans text files and decompressed Pagefind gzip indexes (.pf_*).
+ * - Allowlist ONLY the literal term "github-copilot".
+ * - Fail closed: every other hit in any dist file (text, indexes, wasm,
+ *   images, fonts) fails the build — including skill content under dist/files/.
  *
  * This is the single scanner; CI re-runs the same script rather than a second
  * divergent grep.
@@ -30,13 +27,6 @@ function walk(dir, out = []) {
     else out.push(full);
   }
   return out;
-}
-
-function isPagefindRuntime(rel) {
-  return (
-    /^pagefind\/.+\.(js|mjs|cjs|wasm)$/i.test(rel) ||
-    /^pagefind\/.+\.wasm$/i.test(rel)
-  );
 }
 
 function stripAllowedMentions(text) {
@@ -82,18 +72,12 @@ for (const file of walk(dist)) {
         text = raw.toString("utf8");
       }
       if (containsGithub(text)) {
-        if (isPagefindRuntime(rel)) continue;
         offenders.push(`${rel} (pagefind index)`);
       }
     } catch (err) {
       console.warn(`Could not scan ${rel}:`, err.message);
     }
     continue;
-  }
-
-  if (!/\.(html|js|mjs|cjs|css|json|txt|xml|md|svg|map|csv|wasm)$/i.test(file)) {
-    // Extensionless text-ish
-    if (base.includes(".")) continue;
   }
 
   let buf;
@@ -103,11 +87,10 @@ for (const file of walk(dist)) {
     continue;
   }
 
-  // wasm / binary: search as latin1 byte string
-  if (buf.includes(0) || /\.wasm$/i.test(file)) {
+  // Binary / wasm / images / fonts: search as latin1 byte string (fail closed)
+  if (buf.includes(0) || !/^[\x09\x0a\x0d\x20-\x7e]*$/.test(buf.toString("latin1"))) {
     const text = buf.toString("latin1");
     if (containsGithub(text)) {
-      if (isPagefindRuntime(rel)) continue;
       offenders.push(rel);
     }
     continue;
@@ -115,7 +98,6 @@ for (const file of walk(dist)) {
 
   const text = buf.toString("utf8");
   if (containsGithub(text)) {
-    if (isPagefindRuntime(rel)) continue;
     offenders.push(rel);
   }
 }
@@ -127,9 +109,7 @@ if (scrubbed) {
 if (offenders.length) {
   console.error("dist/ still contains disallowed 'github' mentions:");
   for (const o of offenders) console.error(" ", o);
-  console.error(
-    "Allowed: pagefind/*.{js,wasm} runtime leftovers after scrub; literal 'github-copilot'.",
-  );
+  console.error("Allowed: literal 'github-copilot' only.");
   process.exit(1);
 }
 

@@ -57,17 +57,6 @@ jobs:
         working-directory: site
         run: |
           set -euo pipefail
-          SKILL="../_ci-files-security"
-          mkdir -p "$SKILL"
-          cat > "$SKILL/SKILL.md" <<'EOF'
-          ---
-          name: _ci-files-security
-          description: CI fixture for allowlist and symlink policy.
-          ---
-          # fixture
-          EOF
-          # Underscore folders are ignored by the publisher — use a real slug:
-          rm -rf "$SKILL"
           BAD="../zz-files-security"
           mkdir -p "$BAD"
           cat > "$BAD/SKILL.md" <<'EOF'
@@ -117,6 +106,24 @@ jobs:
           ! grep -R 'SECRET=nope' dist/files || { echo 'secret leaked'; exit 1; }
           rm -rf "$GOOD" ../site/secret.env.ci
           echo "Symlink skip OK"
+          # Symlinked .md must not become a page or Pagefind hit
+          MDFIX="../zz-symlink-md"
+          mkdir -p "$MDFIX"
+          cat > "$MDFIX/SKILL.md" <<'EOF'
+          ---
+          name: zz-symlink-md
+          description: CI fixture proving symlinked markdown is not published as a page.
+          ---
+          # fixture
+          EOF
+          printf 'SYMLINK_MD_LEAK_MARKER=should-not-index\n' > ../site/secret.env.ci
+          ln -s ../site/secret.env.ci "$MDFIX/leak.md"
+          npm run build
+          test ! -e dist/zz-symlink-md/leak/index.html
+          test ! -e dist/files/zz-symlink-md/leak.md
+          ! grep -R 'SYMLINK_MD_LEAK_MARKER' dist || { echo 'symlinked md leaked into dist'; exit 1; }
+          rm -rf "$MDFIX" ../site/secret.env.ci
+          echo "Symlinked md page skip OK"
           # Restore clean dist for later steps
           npm run build
 

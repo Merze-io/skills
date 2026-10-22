@@ -50,6 +50,10 @@ Shared helper: `src/lib/skill-sources.mjs` (+ typed re-export `skill-sources.ts`
 Single scanner: `scripts/scrub-github.mjs` (also re-run in CI).
 
 - Scrubs Pagefind UI translator credit URLs
-- Scans text assets and decompressed Pagefind `.pf_*` indexes
-- Allowlist only: leftover `github` inside `pagefind/*.{js,wasm}` after scrub, and the literal term `github-copilot`
+- Fail closed: scans every file under `dist/` (text, decompressed Pagefind `.pf_*`, wasm, images, fonts)
+- Allowlist only: the literal term `github-copilot`
 - Any other hit — including skill content under `dist/files/` — fails the build
+
+## Content collection vs `/files/`
+
+The Astro content glob can follow symlinks. Collection entries are filtered through the same `skill-sources` rules (`isSafeSkillSourceFile`): symlinks and non-allowlisted paths never become pages or Pagefind documents. Install lists come from `listSafeSkillFiles` so they cannot drift from `/files/`.

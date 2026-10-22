@@ -1,5 +1,6 @@
 /**
- * Shared rules for which skill-folder files may be published under /files/.
+ * Shared rules for which skill-folder files may be published under /files/
+ * and which markdown entries may become site pages / Pagefind documents.
  * MER-1098 (distribution) should reuse this module (or the .ts re-export) so
  * allowlist / symlink policy stays one source of truth.
  */
@@ -28,6 +29,73 @@ export function isPublishableSkillFolder(name) {
 
 export function isAllowedSkillFileName(name) {
   return ALLOWED_SKILL_FILE_EXT.test(name);
+}
+
+function isInsideDir(childReal, rootReal) {
+  const root = rootReal.endsWith(path.sep) ? rootReal : rootReal + path.sep;
+  return childReal === rootReal || childReal.startsWith(root);
+}
+
+/**
+ * True when `candidatePath` is a regular, allowlisted file confined to
+ * `skillDir`. Symbolic links always return false (never followed).
+ */
+export function isSafeSkillSourceFile(candidatePath, skillDir) {
+  const root = path.resolve(skillDir);
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return false;
+
+  const rootReal = fs.realpathSync(root);
+  const candidate = path.resolve(candidatePath);
+
+  let st;
+  try {
+    st = fs.lstatSync(candidate);
+  } catch {
+    return false;
+  }
+
+  if (st.isSymbolicLink()) return false;
+  if (!st.isFile()) return false;
+  if (!isAllowedSkillFileName(path.basename(candidate))) return false;
+
+  let fileReal;
+  try {
+    fileReal = fs.realpathSync(candidate);
+  } catch {
+    return false;
+  }
+
+  return isInsideDir(fileReal, rootReal);
+}
+
+/**
+ * Resolve an Astro content-layer `filePath` (relative to the site project root)
+ * to an absolute filesystem path.
+ */
+export function absolutePathFromCollectionFilePath(siteRoot, filePath) {
+  return path.resolve(siteRoot, filePath);
+}
+
+/**
+ * Relative path inside the skill folder for a content collection entry id
+ * such as `us-llc-state-cost/skill` → `SKILL.md` or
+ * `us-llc-state-cost/nested/doc` → `nested/doc.md`.
+ */
+export function relativePathFromCollectionId(entryId) {
+  const cleaned = String(entryId).replace(/\\/g, "/");
+  const parts = cleaned.split("/").filter(Boolean);
+  if (parts.length < 2) {
+    const base = cleaned.replace(/\.md$/i, "");
+    return base.toLowerCase() === "skill" ? "SKILL.md" : `${base}.md`;
+  }
+  const rest = parts.slice(1);
+  const last = rest[rest.length - 1];
+  if (last.toLowerCase() === "skill") {
+    rest[rest.length - 1] = "SKILL.md";
+  } else if (!/\.md$/i.test(last)) {
+    rest[rest.length - 1] = `${last}.md`;
+  }
+  return rest.join("/");
 }
 
 /**
@@ -59,7 +127,7 @@ export function listSafeSkillFiles(skillDir) {
 
       if (entry.isDirectory()) {
         const dirReal = fs.realpathSync(from);
-        if (dirReal !== rootReal && !dirReal.startsWith(rootReal + path.sep)) {
+        if (!isInsideDir(dirReal, rootReal)) {
           throw new Error(
             `Skill path resolves outside skill folder: ${from} -> ${dirReal}`,
           );
@@ -77,7 +145,7 @@ export function listSafeSkillFiles(skillDir) {
       }
 
       const fileReal = fs.realpathSync(from);
-      if (fileReal !== rootReal && !fileReal.startsWith(rootReal + path.sep)) {
+      if (!isInsideDir(fileReal, rootReal)) {
         throw new Error(
           `Skill file resolves outside skill folder: ${from} -> ${fileReal}`,
         );

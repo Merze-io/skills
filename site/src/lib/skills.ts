@@ -1,7 +1,54 @@
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { getCollection, type CollectionEntry } from "astro:content";
+import {
+  absolutePathFromCollectionFilePath,
+  isPublishableSkillFolder,
+  isSafeSkillSourceFile,
+  listSafeSkillFiles,
+  relativePathFromCollectionId,
+  type SkillSourceFile,
+} from "./skill-sources";
 
 export type SkillEntry = CollectionEntry<"skills">;
 export type SupportingEntry = CollectionEntry<"supporting">;
+
+const siteRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const repoRoot = path.resolve(siteRoot, "..");
+
+function skillDirForSlug(slug: string): string {
+  return path.join(repoRoot, slug);
+}
+
+/** Absolute path on disk for a content-collection entry (symlink-aware). */
+function absolutePathForEntry(
+  entry: { id: string; filePath?: string },
+  skillSlugName: string,
+): string {
+  if (entry.filePath) {
+    return absolutePathFromCollectionFilePath(siteRoot, entry.filePath);
+  }
+  return path.join(
+    skillDirForSlug(skillSlugName),
+    relativePathFromCollectionId(entry.id),
+  );
+}
+
+function isSafeCollectionEntry(
+  entry: { id: string; filePath?: string },
+  skillSlugName: string,
+): boolean {
+  if (!isPublishableSkillFolder(skillSlugName)) return false;
+  return isSafeSkillSourceFile(
+    absolutePathForEntry(entry, skillSlugName),
+    skillDirForSlug(skillSlugName),
+  );
+}
+
+/** Allowlisted, non-symlink files for a skill (install + /files/ parity). */
+export function getPublishedSkillFiles(slug: string): SkillSourceFile[] {
+  return listSafeSkillFiles(skillDirForSlug(slug));
+}
 
 export type DescriptionParts = {
   summary: string;
@@ -90,20 +137,11 @@ export function validateSkillEntry(entry: SkillEntry): void {
   }
 }
 
-function isPublishableFolder(name: string): boolean {
-  return (
-    Boolean(name) &&
-    !name.startsWith("_") &&
-    !name.startsWith(".") &&
-    name !== "site" &&
-    name !== "node_modules"
-  );
-}
-
 export async function getAllSkills(): Promise<SkillEntry[]> {
-  const entries = await getCollection("skills", (entry) =>
-    isPublishableFolder(folderNameFromSkillId(entry.id)),
-  );
+  const entries = await getCollection("skills", (entry) => {
+    const slug = folderNameFromSkillId(entry.id);
+    return isSafeCollectionEntry(entry, slug);
+  });
   for (const entry of entries) {
     validateSkillEntry(entry);
   }
@@ -131,17 +169,17 @@ export function isSkillMarkdown(entry: SupportingEntry): boolean {
 export async function getSupportingFiles(
   skillSlugName: string,
 ): Promise<SupportingEntry[]> {
-  const entries = await getCollection("supporting", (entry) =>
-    isPublishableFolder(supportingSkillSlug(entry)),
-  );
-  return entries
-    .filter(
-      (e) =>
-        supportingSkillSlug(e) === skillSlugName && !isSkillMarkdown(e),
-    )
-    .sort((a, b) =>
-      supportingFileSlug(a).localeCompare(supportingFileSlug(b), "en"),
+  const entries = await getCollection("supporting", (entry) => {
+    const slug = supportingSkillSlug(entry);
+    return (
+      slug === skillSlugName &&
+      !isSkillMarkdown(entry) &&
+      isSafeCollectionEntry(entry, slug)
     );
+  });
+  return entries.sort((a, b) =>
+    supportingFileSlug(a).localeCompare(supportingFileSlug(b), "en"),
+  );
 }
 
 /** Site-local download for a skill file (served from dist at build time). */
