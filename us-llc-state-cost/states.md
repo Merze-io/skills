@@ -59,9 +59,9 @@ This is a three-column table. Each row is one non-state item.
 
 ## Founder defaults (cost only)
 
-Cost heuristics for states in this table. Not legal advice. Apply only to states the founder picked.
+Cost heuristics for **Suggest set** in SKILL.md and for the pick sentence after a table. Not legal advice. Prefer states already in this table when they fit; if the use case needs another U.S. state, add it with the "If the user names another state" steps before costing.
 
-This is a three-column table. Each row is one founder-default pairing.
+This is a three-column table. Each row is one founder-default pairing. For a suggestion, pick **two** rows that match (usually home/operate state + one shell, or two shells).
 
 | Goal | Cost-shaped default | Why |
 | --- | --- | --- |
@@ -69,6 +69,8 @@ This is a three-column table. Each row is one founder-default pairing.
 | Absolute lowest 5-year state cash | New Mexico | $50 formation, no annual report |
 | Investor or "Delaware company" default | Delaware | Budget the $400/yr tax, not the $110 filing |
 | Already live and selling in one US state | That state | A second agent plus foreign qualification comes later |
+| Home state vs cheap shell | Home/operate state + Wyoming or New Mexico | Shows the bill they still owe locally next to a low keep-alive shell |
+| Two named states from the founder | Exactly those states | Do not swap in a "better" default; cost what they asked |
 
 ## If the user names another state
 

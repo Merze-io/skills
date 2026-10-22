@@ -245,6 +245,7 @@ export function formatUpdated(iso: string | null): string | null {
 export type SkillListItem = {
   slug: string;
   name: string;
+  title: string;
   summary: string;
   version: string | null;
   category: string | null;
@@ -253,6 +254,12 @@ export type SkillListItem = {
   updatedAt: string | null;
   description: string;
 };
+
+/** Human label for catalog and detail pages; falls back to the machine name. */
+export function displayTitle(skill: SkillEntry | { data: { title?: string; name: string } }): string {
+  const title = skill.data.title?.trim();
+  return title || skill.data.name;
+}
 
 export async function getSkillListItems(): Promise<SkillListItem[]> {
   const skills = await getAllSkills();
@@ -265,6 +272,7 @@ export async function getSkillListItems(): Promise<SkillListItem[]> {
     items.push({
       slug,
       name: skill.data.name,
+      title: displayTitle(skill),
       summary: parts.summary,
       version: skill.data.metadata?.version ?? null,
       category: skill.data.metadata?.category ?? null,

@@ -4,6 +4,7 @@ import BaseLayout from "../../../layouts/BaseLayout.astro";
 import CopyButton from "../../../components/CopyButton.astro";
 import Icon from "../../../components/Icon.astro";
 import {
+  displayTitle,
   extractWhenToUseFromBody,
   getAllSkills,
   getPublishedSkillFiles,
@@ -16,7 +17,7 @@ import {
   supportingFileSlug,
   formatUpdated,
 } from "../../../lib/skills";
-import { skillDocPath, skillPath } from "../../../lib/routes";
+import { SITE_ORIGIN, skillDocPath, skillPath } from "../../../lib/routes";
 import { extractToc } from "../../../lib/toc";
 
 export async function getStaticPaths() {
@@ -29,6 +30,7 @@ export async function getStaticPaths() {
 
 const { skill } = Astro.props;
 const slug = skillSlug(skill);
+const title = displayTitle(skill);
 const parts = parseDescription(skill.data.description);
 const { Content } = await render(skill);
 const body = skill.body ?? "";
@@ -43,18 +45,35 @@ const version = skill.data.metadata?.version ?? null;
 const tags = skill.data.metadata?.tags ?? [];
 const category = skill.data.metadata?.category ?? null;
 
+const publishedForPaste = [...publishedFiles].sort((a, b) => {
+  if (a.relativePath === "SKILL.md") return -1;
+  if (b.relativePath === "SKILL.md") return 1;
+  return a.relativePath.localeCompare(b.relativePath, "en");
+});
+
 // curl --create-dirs makes the initial mkdir -p redundant
 const installSnippet = publishedFiles
   .map((f) => {
     const localPath = `${slug}/${f.relativePath}`;
-    const url = `https://skills.merze.ai${skillFileUrl(slug, f.relativePath)}`;
+    const url = `${SITE_ORIGIN}${skillFileUrl(slug, f.relativePath)}`;
     return `curl --create-dirs -fsSLo ${shellSingleQuote(localPath)} ${shellSingleQuote(url)}`;
   })
   .join(" && \\\n");
+
+const chatAgentFileLines = publishedForPaste
+  .map((f) => `- ${SITE_ORIGIN}${skillFileUrl(slug, f.relativePath)}`)
+  .join("\n");
+const chatAgentPaste = [
+  "Read these Merze skill files and follow them for this chat:",
+  "",
+  chatAgentFileLines,
+  "",
+  "Treat SKILL.md as the instructions. Use supporting files only when the skill says to.",
+].join("\n");
 ---
 
 <BaseLayout
-  title={skill.data.name}
+  title={title}
   description={parts.summary}
   canonicalPath={skillPath(slug)}
 >
@@ -66,7 +85,8 @@ const installSnippet = publishedFiles
           All skills
         </a>
       </p>
-      <h1>{skill.data.name}</h1>
+      <h1>{title}</h1>
+      <p class="skill-detail__id"><code>{skill.data.name}</code></p>
       <p class="lede">{parts.summary}</p>
       <div class="skill-meta">
         {version && <span class="badge">v{version}</span>}
@@ -145,9 +165,30 @@ const installSnippet = publishedFiles
           ))
         }
       </ul>
-      <div class="install-snippet">
-        <pre tabindex="0"><code>{installSnippet}</code></pre>
-        <CopyButton text={installSnippet} label="Copy install command" />
+      <div class="install-method">
+        <h3 class="install-method__title" id="chat-agents-heading">
+          Chat agents
+        </h3>
+        <p class="panel__copy">
+          Paste into ChatGPT, Claude, or another chat agent so it can open the
+          skill files from this catalog.
+        </p>
+        <div class="install-snippet">
+          <pre tabindex="0"><code>{chatAgentPaste}</code></pre>
+          <CopyButton text={chatAgentPaste} label="Copy for chat agents" />
+        </div>
+      </div>
+      <div class="install-method">
+        <h3 class="install-method__title" id="cli-install-heading">
+          Skills directory
+        </h3>
+        <p class="panel__copy">
+          Or download into a local <code>{slug}/</code> folder with curl.
+        </p>
+        <div class="install-snippet">
+          <pre tabindex="0"><code>{installSnippet}</code></pre>
+          <CopyButton text={installSnippet} label="Copy install command" />
+        </div>
       </div>
     </section>
 

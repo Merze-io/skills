@@ -1,5 +1,5 @@
 ---
-import interWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import rethinkWoff2 from "@fontsource/rethink-sans/files/rethink-sans-latin-400-normal.woff2?url";
 import "../styles/global.css";
 
 interface Props {
@@ -10,15 +10,13 @@ interface Props {
 
 const {
   title,
-  description = "Public Agent Skills for Merze — browse, search, and download skills for coding agents.",
+  description = "Public Agent Skills from Merze — install into ChatGPT, Claude, Cursor, Claude Code, and other skill-capable agents.",
   canonicalPath = "/",
 } = Astro.props;
 
 const canonical = new URL(canonicalPath, Astro.site).href;
 const pageTitle =
-  title === "Skills"
-    ? "skills.merze.ai — Merze Agent Skills"
-    : `${title} · skills.merze.ai`;
+  title === "Skills" ? "Merze Agent Skills" : `${title} · Merze Agent Skills`;
 ---
 
 <!doctype html>
@@ -32,7 +30,7 @@ const pageTitle =
     <link rel="icon" href="/favicon.png" type="image/png" />
     <link
       rel="preload"
-      href={interWoff2}
+      href={rethinkWoff2}
       as="font"
       type="font/woff2"
       crossorigin
@@ -50,8 +48,15 @@ const pageTitle =
     <header class="site-header">
       <div class="site-header__inner">
         <a class="brand" href="/">
-          <img src="/logo.png" alt="Merze" width="126" height="28" />
-          <span class="brand__label">skills</span>
+          <img
+            class="brand__mark"
+            src="/merze-mark.png"
+            alt=""
+            width="28"
+            height="30"
+          />
+          <span class="brand__word">MERZE</span>
+          <span class="brand__label">Skills</span>
         </a>
         <nav class="site-nav" aria-label="Primary">
           <a href="/" aria-current={canonicalPath === "/" ? "page" : undefined}
@@ -73,7 +78,8 @@ const pageTitle =
       <div class="site-footer__inner">
         <p>
           Public Agent Skills for
-          <a href="https://merze.ai">Merze</a>.
+          <a href="https://merze.ai">Merze</a>
+          — ChatGPT, Claude, Cursor, Claude Code, and more.
         </p>
         <p>
           <a href="/skills.json">skills.json</a>

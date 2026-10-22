@@ -9,3 +9,10 @@ rewrite-log.txt
 demote-loaded.txt
 
 dist-nginx/
+
+# Impeccable session artifacts (comps, plates, question state)
+.impeccable/mocks/
+.impeccable/build/
+.impeccable/questions/
+.impeccable/review/
+assets/
