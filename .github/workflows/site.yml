@@ -149,11 +149,18 @@ jobs:
           test -f dist/files/zz-nested-install/SKILL.md
           test -f dist/files/zz-nested-install/sub/notes.txt
           test -f dist/files/zz-nested-install/sub/deep/data.json
-          # SKILL.md listed first in install panel
+          # Parse install UI, assert SKILL.md first + --create-dirs, then replay
+          # the generated curl command against a local server (7/7 files).
           python3 - <<'PY'
           from pathlib import Path
           import html as htmlmod
+          import http.server
           import re
+          import shutil
+          import subprocess
+          import threading
+          from functools import partial
+
           page = Path("dist/zz-nested-install/index.html").read_text()
           m = re.search(r'file-list--install">(.*?)</ul>', page, re.S)
           assert m, "missing install list"
@@ -164,90 +171,93 @@ jobs:
           assert "sub/notes.txt" in names and "sub/deep/data.json" in names, names
           assert len(names) == 7, names
           assert "--create-dirs" in page
+          assert "curl --create-dirs -fsSLo '" in page
           pre = re.search(r'install-snippet.*?<pre[^>]*><code>(.*?)</code></pre>', page, re.S)
           assert pre, "missing install snippet"
           cmd = htmlmod.unescape(pre.group(1))
-          Path("/tmp/zz-nested-install.sh").write_text(
-              cmd.replace("https://skills.merze.ai", "http://127.0.0.1:8765")
-          )
-          print("install files:", names)
+          assert all(f"'{n}'" in cmd or f"'zz-nested-install/{n}'" in cmd for n in names)
+
+          handler = partial(http.server.SimpleHTTPRequestHandler, directory="dist")
+          server = http.server.ThreadingHTTPServer(("127.0.0.1", 8765), handler)
+          thread = threading.Thread(target=server.serve_forever, daemon=True)
+          thread.start()
+
+          out = Path("/tmp/zz-nested-install-out")
+          if out.exists():
+              shutil.rmtree(out)
+          out.mkdir(parents=True)
+          script = Path("/tmp/zz-nested-install.sh")
+          script.write_text(cmd.replace("https://skills.merze.ai", "http://127.0.0.1:8765"))
+          try:
+              subprocess.run(["bash", str(script)], cwd=out, check=True)
+          finally:
+              server.shutdown()
+
+          got = sorted(p.relative_to(out / "zz-nested-install").as_posix()
+                       for p in (out / "zz-nested-install").rglob("*") if p.is_file())
+          assert len(got) == 7, got
+          for name in names:
+              src = Path("dist/files/zz-nested-install") / name
+              dst = out / "zz-nested-install" / name
+              assert src.read_bytes() == dst.read_bytes(), name
+          print("Nested install 7/7 OK:", got)
           PY
-          python3 -m http.server 8765 --directory dist >/tmp/zz-http.log 2>&1 &
-          HTTP_PID=$!
-          cleanup_http() { kill "$HTTP_PID" 2>/dev/null || true; }
-          trap cleanup_http EXIT
-          for i in $(seq 1 30); do
-            curl -fsS http://127.0.0.1:8765/files/zz-nested-install/SKILL.md >/dev/null && break
-            sleep 0.2
-          done
-          mkdir -p /tmp/zz-nested-install-out
-          ( cd /tmp/zz-nested-install-out && bash /tmp/zz-nested-install.sh )
-          cleanup_http
-          trap - EXIT
-          test "$(find /tmp/zz-nested-install-out/zz-nested-install -type f | wc -l)" -eq 7
-          cmp dist/files/zz-nested-install/SKILL.md /tmp/zz-nested-install-out/zz-nested-install/SKILL.md
-          cmp dist/files/zz-nested-install/sub/notes.txt /tmp/zz-nested-install-out/zz-nested-install/sub/notes.txt
-          cmp dist/files/zz-nested-install/sub/deep/data.json /tmp/zz-nested-install-out/zz-nested-install/sub/deep/data.json
-          echo "Nested install 7/7 OK"
           rm -rf "$NEST" /tmp/zz-nested-install-out /tmp/zz-nested-install.sh
 
           # Github gate self-test: raw png append + gunzipped wasm injection
           npm run build
-          run_gate_on_copy() {
-            local src="$1"
-            local log="$2"
-            local bak
-            bak=$(mktemp -d)
-            mv dist "$bak/dist"
-            mv "$src" dist
-            set +e
-            node scripts/scrub-github.mjs >"$log" 2>&1
-            local code=$?
-            set -e
-            mv dist "$src"
-            mv "$bak/dist" dist
-            rm -rf "$bak"
-            return "$code"
-          }
+          python3 - <<'PY'
+          import gzip
+          import shutil
+          import subprocess
+          import tempfile
+          from pathlib import Path
 
-          GATE=$(mktemp -d)
-          cp -a dist/. "$GATE/"
-          printf 'github' >> "$GATE/logo.png"
-          set +e
-          run_gate_on_copy "$GATE" /tmp/gate-logo.log
-          logo_code=$?
-          set -e
-          if [[ $logo_code -eq 0 ]]; then
-            echo "Expected gate fail on logo.png"
-            cat /tmp/gate-logo.log
-            exit 1
-          fi
-          echo "OK gate fail: logo.png"
-          rm -rf "$GATE"
+          dist = Path("dist")
 
-          GATE2=$(mktemp -d)
-          cp -a dist/. "$GATE2/"
-          python3 - "$GATE2" <<'PY'
-          import gzip, pathlib, sys
-          wasm = pathlib.Path(sys.argv[1]) / "pagefind" / "wasm.en.pagefind"
-          raw = wasm.read_bytes()
-          try:
-              body = gzip.decompress(raw)
-          except Exception:
-              body = raw
-          wasm.write_bytes(gzip.compress(body + b"\0github\0"))
+          def run_scrub_on_copy(mutate, label):
+              with tempfile.TemporaryDirectory() as td:
+                  poisoned = Path(td) / "dist"
+                  shutil.copytree(dist, poisoned)
+                  mutate(poisoned)
+                  bak = dist.parent / "dist.bak-gate"
+                  if bak.exists():
+                      shutil.rmtree(bak)
+                  dist.rename(bak)
+                  try:
+                      poisoned.rename(dist)
+                      r = subprocess.run(
+                          ["node", "scripts/scrub-github.mjs"],
+                          capture_output=True,
+                          text=True,
+                      )
+                  finally:
+                      if dist.exists():
+                          shutil.rmtree(dist)
+                      bak.rename(dist)
+                  if r.returncode == 0:
+                      print(r.stdout)
+                      print(r.stderr)
+                      raise SystemExit(f"Expected gate fail: {label}")
+                  print(f"OK gate fail: {label}")
+                  print((r.stderr or r.stdout).strip().splitlines()[-3:])
+
+          def inject_logo(root: Path):
+              with (root / "logo.png").open("ab") as f:
+                  f.write(b"github")
+
+          def inject_wasm(root: Path):
+              wasm = root / "pagefind" / "wasm.en.pagefind"
+              raw = wasm.read_bytes()
+              try:
+                  body = gzip.decompress(raw)
+              except Exception:
+                  body = raw
+              wasm.write_bytes(gzip.compress(body + b"\0github\0"))
+
+          run_scrub_on_copy(inject_logo, "logo.png")
+          run_scrub_on_copy(inject_wasm, "gunzipped wasm.en.pagefind")
           PY
-          set +e
-          run_gate_on_copy "$GATE2" /tmp/gate-wasm.log
-          wasm_code=$?
-          set -e
-          if [[ $wasm_code -eq 0 ]]; then
-            echo "Expected gate fail on gunzipped wasm"
-            cat /tmp/gate-wasm.log
-            exit 1
-          fi
-          echo "OK gate fail: gunzipped wasm.en.pagefind"
-          rm -rf "$GATE2"
 
           # Restore clean dist for later steps
           npm run build
