@@ -92,6 +92,7 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
         class="skill-card"
         data-skill-row
         data-name={skill.name}
+        data-title={skill.title}
         data-summary={skill.summary}
         data-description={skill.description}
         data-category={skill.category ?? ""}
@@ -102,7 +103,10 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
       >
         <a class="skill-card__link" href={`/${skill.slug}/`}>
           <div class="skill-card__top">
-            <h3 class="skill-card__name">{skill.name}</h3>
+            <div class="skill-card__heading">
+              <h3 class="skill-card__name">{skill.title}</h3>
+              <p class="skill-card__id">{skill.name}</p>
+            </div>
             {skill.version && (
               <span class="badge badge--version">v{skill.version}</span>
             )}
@@ -178,7 +182,10 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
     }
 
     rows.sort((a, b) =>
-      (a.dataset.name ?? "").localeCompare(b.dataset.name ?? "", "en"),
+      (a.dataset.title || a.dataset.name || "").localeCompare(
+        b.dataset.title || b.dataset.name || "",
+        "en",
+      ),
     );
     if (list) {
       for (const row of rows) list.appendChild(row);

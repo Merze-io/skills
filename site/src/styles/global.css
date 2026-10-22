@@ -520,6 +520,18 @@ h3 {
   margin-bottom: 0.5rem;
 }
 
+.skill-detail__id {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: var(--color-muted);
+}
+
+.skill-detail__id code {
+  font-size: inherit;
+  font-weight: 500;
+  color: var(--color-muted-strong);
+}
+
 .skill-detail__body {
   margin-top: 2rem;
 }
@@ -845,14 +857,27 @@ fieldset.filter-group legend {
   gap: 0.75rem;
 }
 
+.skill-card__heading {
+  min-width: 0;
+  flex: 1;
+}
+
 .skill-card__name {
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-heading);
-  font-variant-numeric: tabular-nums;
   word-break: break-word;
+}
+
+.skill-card__id {
+  margin: 0.2rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
 }
 
 .skill-card__summary {

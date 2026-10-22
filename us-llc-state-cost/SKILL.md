@@ -1,5 +1,6 @@
 ---
 name: us-llc-state-cost
+title: US LLC Incorporation State Comparison
 description: >
   Interviews a founder, asks which U.S. states to cost, then compares
   domestic LLC formation fees with year-2 keep-alive costs. Use when the
@@ -12,7 +13,7 @@ metadata:
   source: "Merze-io/skills"
 ---
 
-# US LLC state cost compare
+# US LLC Incorporation State Comparison
 
 Domestic LLC only. Cost the states the founder picks. The decision number is the year-2 recurring state amount in [states.md](states.md).
 
