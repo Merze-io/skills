@@ -7,6 +7,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import { rehypeRewriteRelativeLinks } from "./src/lib/rehype-rewrite-relative-links.js";
 import { rehypeDemoteHeadings } from "./src/lib/rehype-demote-headings.js";
 import { rehypeFocusablePre } from "./src/lib/rehype-focusable-pre.js";
+import { rehypeLabelTaskListCheckboxes } from "./src/lib/rehype-label-task-list-checkboxes.js";
 import { distributionIntegration } from "./src/integrations/distribution.ts";
 
 const sanitizeSchema = {
@@ -82,8 +83,9 @@ export default defineConfig({
         },
       ],
       rehypeRewriteRelativeLinks,
-      // After sanitize so tabindex survives; keeps scrollable <pre> keyboard-reachable.
+      // After sanitize so tabindex / aria-label survive.
       rehypeFocusablePre,
+      rehypeLabelTaskListCheckboxes,
     ],
     shikiConfig: {
       theme: "min-light",
