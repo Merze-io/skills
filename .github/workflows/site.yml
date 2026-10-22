@@ -221,9 +221,9 @@ jobs:
 
       - name: Axe at real viewports (320 / 360 / 1280)
         working-directory: site
-        env:
-          PUPPETEER_CACHE_DIR: ${{ runner.temp }}/puppeteer
-        run: npm run axe:viewports
+        run: |
+          npx puppeteer browsers install chrome
+          npm run axe:viewports
 
   docker-smoke:
     runs-on: ubuntu-latest
