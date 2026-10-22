@@ -10,6 +10,7 @@ const skillSchema = z
       .min(1)
       .max(64)
       .regex(namePattern, "name must match /^[a-z0-9-]{1,64}$/"),
+    title: z.string().min(1).max(120).optional(),
     description: z.string().min(1).max(1024),
     metadata: z
       .object({

@@ -3,6 +3,7 @@ import { render } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import Icon from "../../components/Icon.astro";
 import {
+  displayTitle,
   getAllSkills,
   getSupportingFiles,
   skillFileUrl,
@@ -30,22 +31,23 @@ export async function getStaticPaths() {
 
 const { skill, supporting, fileSlug } = Astro.props;
 const slug = skillSlug(skill);
+const skillTitle = displayTitle(skill);
 const { Content } = await render(supporting);
 const toc = extractToc(supporting.body ?? "");
-const title = `${fileSlug}.md · ${skill.data.name}`;
+const title = `${fileSlug}.md · ${skillTitle}`;
 const downloadUrl = skillFileUrl(slug, `${fileSlug}.md`);
 ---
 
 <BaseLayout
   title={title}
-  description={`Supporting file ${fileSlug}.md for ${skill.data.name}`}
+  description={`Supporting file ${fileSlug}.md for ${skillTitle}`}
   canonicalPath={`/${slug}/${fileSlug}/`}
 >
   <article data-pagefind-body class="skill-detail">
     <p class="back-row">
       <a href={`/${slug}/`} class="back-link">
         <Icon name="arrow-left" size={16} />
-        {skill.data.name}
+        {skillTitle}
       </a>
     </p>
     <header class="skill-detail__header">

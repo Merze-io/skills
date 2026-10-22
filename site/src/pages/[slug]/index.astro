@@ -15,6 +15,7 @@ import {
   supportingFileSlug,
   formatUpdated,
   getSourceUpdatedAt,
+  displayTitle,
 } from "../../lib/skills";
 import { extractToc } from "../../lib/toc";
 
@@ -28,6 +29,7 @@ export async function getStaticPaths() {
 
 const { skill } = Astro.props;
 const slug = skillSlug(skill);
+const title = displayTitle(skill);
 const parts = parseDescription(skill.data.description);
 const { Content } = await render(skill);
 const body = skill.body ?? "";
@@ -52,7 +54,7 @@ const installSnippet = publishedFiles
 ---
 
 <BaseLayout
-  title={skill.data.name}
+  title={title}
   description={parts.summary}
   canonicalPath={`/${slug}/`}
 >
@@ -64,7 +66,8 @@ const installSnippet = publishedFiles
           All skills
         </a>
       </p>
-      <h1>{skill.data.name}</h1>
+      <h1>{title}</h1>
+      <p class="skill-detail__id"><code>{skill.data.name}</code></p>
       <p class="lede">{parts.summary}</p>
       <div class="skill-meta">
         {version && <span class="badge">v{version}</span>}

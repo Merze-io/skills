@@ -131,7 +131,9 @@ function parseFrontmatter(skillMd: string): {
       : {};
   const bodyAfter = skillMd.slice(m[0].length);
   const h1 = bodyAfter.match(/^#\s+(.+)$/m);
-  const title = h1?.[1]?.trim() || data.name;
+  const frontmatterTitle =
+    typeof data.title === "string" ? data.title.trim() : "";
+  const title = frontmatterTitle || h1?.[1]?.trim() || data.name;
   const tags = Array.isArray(meta.tags)
     ? meta.tags.filter((t): t is string => typeof t === "string")
     : [];
