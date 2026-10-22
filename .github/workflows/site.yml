@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -893,8 +896,9 @@ jobs:
             cat /tmp/skills-check.out
             exit 1
           fi
-          if grep -Eiq 'update available|outdated|needs update|digest mismatch|will be updated|Updated [1-9]' /tmp/skills-check.out; then
-            echo "skills check reported drift unexpectedly:"
+          # Also fail when check cannot reach the source (skills@1.7.4 still exits 0).
+          if grep -Eiq 'update available|outdated|needs update|digest mismatch|will be updated|Updated [1-9]|Failed to check|✗' /tmp/skills-check.out; then
+            echo "skills check reported drift or failed fetch unexpectedly:"
             cat /tmp/skills-check.out
             exit 1
           fi
