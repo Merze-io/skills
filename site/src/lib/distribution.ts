@@ -16,6 +16,7 @@ import {
   tarUrl,
   zipUrl,
 } from "./routes";
+import { readSkillDates } from "./skill-dates";
 import { buildTarGz, buildZip, type ArchiveFile } from "./zip";
 
 export const DISCOVERY_SCHEMA =
@@ -158,36 +159,19 @@ function toUtcIso(value: string | number | Date): string | null {
 
 const FALLBACK_UPDATED_AT = "1980-01-01T00:00:00.000Z";
 
-type SkillDatesManifest = {
-  skills?: Record<string, string>;
-};
-
-let cachedSkillDates: SkillDatesManifest | null | undefined;
-
-function loadSkillDatesManifest(repoRoot: string): SkillDatesManifest | null {
-  if (cachedSkillDates !== undefined) return cachedSkillDates;
-  const p = path.join(repoRoot, "site", "data", "skill-dates.json");
-  try {
-    cachedSkillDates = JSON.parse(fs.readFileSync(p, "utf8")) as SkillDatesManifest;
-  } catch {
-    cachedSkillDates = null;
-  }
-  return cachedSkillDates;
-}
-
 /**
  * Deterministic per-skill updated_at (UTC ISO).
- * site/data/skill-dates.json is the single source of truth and always wins
- * over Coolify SOURCE_DATE / SOURCE_COMMIT_DATE / SOURCE_DATE_EPOCH (those
- * must not blanket every skill). Git log is a local/CI fallback only when the
- * manifest entry is missing; otherwise 1980.
+ * site/data/skill-dates.json is the single source of truth (fail closed if
+ * missing/invalid). Git log is a local/CI fallback only when a skill key is
+ * absent from the manifest; otherwise 1980.
  *
- * SOURCE_DATE_EPOCH is reserved for archive mtimes (see zip.ts), not display.
+ * Note: after squash/rebase, regenerate with
+ * `node site/scripts/generate-skill-dates.mjs` or CI `--check` fails.
  */
 export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
   const name = path.basename(skillDir);
-  const manifest = loadSkillDatesManifest(repoRoot);
-  const fromManifest = manifest?.skills?.[name];
+  const manifest = readSkillDates(repoRoot);
+  const fromManifest = manifest.skills[name];
   if (fromManifest) {
     const iso = toUtcIso(fromManifest);
     if (iso) return iso;

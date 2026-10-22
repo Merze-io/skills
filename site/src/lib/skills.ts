@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCollection, type CollectionEntry } from "astro:content";
@@ -8,6 +7,7 @@ import {
   listSafeSkillFiles,
   type SkillSourceFile,
 } from "./skill-sources";
+import { readSkillDates } from "./skill-dates";
 
 export type SkillEntry = CollectionEntry<"skills">;
 export type SupportingEntry = CollectionEntry<"supporting">;
@@ -51,31 +51,12 @@ export function getPublishedSkillFiles(slug: string): SkillSourceFile[] {
   return listSafeSkillFiles(skillDirForSlug(slug));
 }
 
-type SkillDatesManifest = {
-  skills?: Record<string, string>;
-};
-
-let cachedSkillDates: SkillDatesManifest | null | undefined;
-
-function loadSkillDatesManifest(): SkillDatesManifest | null {
-  if (cachedSkillDates !== undefined) return cachedSkillDates;
-  try {
-    const p = path.join(siteRoot, "data", "skill-dates.json");
-    cachedSkillDates = JSON.parse(
-      fs.readFileSync(p, "utf8"),
-    ) as SkillDatesManifest;
-  } catch {
-    cachedSkillDates = null;
-  }
-  return cachedSkillDates;
-}
-
 /**
  * Per-skill updated_at from committed skill-dates.json only.
- * Does not fall back to Coolify SOURCE_DATE (that would blanket every skill).
+ * Manifest must exist and parse (readSkillDates fails closed).
  */
 export function getSkillUpdatedAt(slug: string): string | null {
-  const raw = loadSkillDatesManifest()?.skills?.[slug];
+  const raw = readSkillDates().skills[slug];
   if (!raw) return null;
   const d = new Date(raw);
   if (Number.isNaN(d.getTime())) return null;
@@ -217,18 +198,6 @@ export async function getSupportingFiles(
 /** Site-local raw skill file URL (canonical /skill/<name>/…; /files/ 301s here). */
 export function skillFileUrl(slug: string, filePath = "SKILL.md"): string {
   return `/skill/${encodeSkillFilePath(slug)}/${encodeSkillFilePath(filePath)}`;
-}
-
-/** Optional last-updated from Coolify/build env; omit when absent. */
-export function getSourceUpdatedAt(): string | null {
-  const date =
-    (import.meta.env.SOURCE_DATE as string | undefined) ||
-    (import.meta.env.SOURCE_COMMIT_DATE as string | undefined) ||
-    "";
-  if (!date.trim()) return null;
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return date.trim();
-  return parsed.toISOString();
 }
 
 export function formatUpdated(iso: string | null): string | null {

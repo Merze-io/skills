@@ -16,16 +16,13 @@ npm run dev
 npm run build
 ```
 
-Publishes allowlisted skill files to `dist/files/<slug>/` via
+Publishes allowlisted skill files to `dist/skill/<slug>/` via
 `src/lib/skill-sources.mjs` (md/txt/json/yaml/yml/csv only; no symlinks).
-`scripts/scrub-github.mjs` is the single “github” substring gate — see DESIGN.md.
+`/files/` 301s to `/skill/`. `scripts/scrub-github.mjs` is the single
+“github” substring gate — see DESIGN.md.
 
-Optional env for “last updated” (Coolify build args):
-
-- `SOURCE_DATE` or `SOURCE_COMMIT_DATE` — ISO date string
-- `SOURCE_COMMIT` — commit SHA (informational)
-
-If unset, the updated field and sort-by-updated are omitted.
+Per-skill `updated_at` comes from committed `data/skill-dates.json`
+(regenerate with `npm run generate-skill-dates` after squash/rebase).
 
 ## Docker
 

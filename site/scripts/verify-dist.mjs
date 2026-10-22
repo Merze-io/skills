@@ -283,9 +283,23 @@ for (const f of ["llms.txt", "llms-full.txt"]) {
 }
 
 // Every published skill file under dist/skill/<name>/ must be allowlisted.
-// Astro also writes rendered HTML pages (index.html) beside raw skill files.
+// Skip only rendered catalog pages: skill index + supporting-doc pages.
 for (const name of skills) {
   const skillDist = path.join(distDir, "skill", name);
+  const sourceDir = path.join(repoRoot, name);
+  /** @type {Set<string>} */
+  const renderedIndexRels = new Set(["index.html"]);
+  for (const f of listSafeSkillFiles(sourceDir)) {
+    // content.config supporting glob: top-level *.md except SKILL.md
+    if (
+      f.relativePath !== "SKILL.md" &&
+      f.relativePath.endsWith(".md") &&
+      !f.relativePath.includes("/")
+    ) {
+      const doc = f.relativePath.replace(/\.md$/i, "");
+      renderedIndexRels.add(`${doc}/index.html`);
+    }
+  }
   function walkDist(dir, base = "") {
     for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
       if (ent.name === ".well-known") continue;
@@ -296,8 +310,7 @@ for (const name of skills) {
       }
       if (ent.isDirectory()) walkDist(abs, rel);
       else if (ent.isFile()) {
-        // Rendered catalog pages live next to raw files (PR-2)
-        if (ent.name === "index.html") continue;
+        if (renderedIndexRels.has(rel)) continue;
         assertSafeSkillRelativePath(rel);
         if (!/\.(md|txt|json|ya?ml|csv)$/i.test(rel)) {
           const ext = path.extname(rel).toLowerCase();

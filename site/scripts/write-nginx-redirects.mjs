@@ -2,6 +2,10 @@
 /**
  * Generate dist-nginx/skills-redirects.conf and scripts/redirect-cases.tsv
  * from publishable skill folders. Consumed by nginx (Dockerfile) and docker-smoke.
+ *
+ * Captures are restricted to safe path characters so Location never contains
+ * `\`, control chars, or `//…` open-redirect forms.
+ * End anchors use PCRE `\z` (not `$`) so a trailing LF cannot satisfy the match.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -16,12 +20,19 @@ const outPath = path.join(outDir, "skills-redirects.conf");
 const casesPath = path.join(__dirname, "redirect-cases.tsv");
 const checkOnly = process.argv.includes("--check");
 
+/** Safe path charset for nginx captures (aligned with skill-sources segments + /). */
+const SAFE_PATH = "[A-Za-z0-9._/-]";
+/** strip_slash: first char after / must be alnum; then safe path chars (incl. ~). */
+const SAFE_STRIP = "[A-Za-z0-9][A-Za-z0-9._~/-]*";
+/** Open-redirect / control-char probes in request paths (must never 301). */
+const UNSAFE_REQ_RE = /%0[dDaA]|%5[cC]|%09|\/\//;
+
 const names = listPublishableSkillDirs(repoRoot);
 
 const legacyLines = [
   '    default "";',
   // Only non-canonical about forms (not bare /about)
-  '    ~^/about/(?:index\\.html)?$                                       /about;',
+  '    ~^/about/(?:index\\.html)?\\z                                       /about;',
 ];
 const caseLines = ['    default "";'];
 const filesLines = ['    default "";'];
@@ -36,31 +47,81 @@ const cases = [
   "/about/?x=1\t301\t/about?x=1",
   "/healthz\t200\t",
   "/skills.json\t200\t",
+  // Open-redirect probes — must 404 (never 301 with \\, TAB, CR, LF, or //)
+  "/%5Cevil.com/\t404\t",
+  "/%09/evil.com/\t404\t",
+  "/%0Devil.com\t404\t",
+  "/%0Devil.com/\t404\t",
+  "/%0Aevil.com\t404\t",
+  "/%0Aevil.com/\t404\t",
+  "//evil.com/\t404\t",
+  "//evil.com\t404\t",
 ];
+
+/**
+ * Reject Location targets that could become open redirects.
+ * @param {string} loc
+ */
+function assertSafeLocation(loc) {
+  if (!loc) return;
+  if (loc.startsWith("//") || loc.includes("\\") || /[\x00-\x1f\x7f]/.test(loc)) {
+    throw new Error(`unsafe Location target: ${JSON.stringify(loc)}`);
+  }
+  if (!loc.startsWith("/")) {
+    throw new Error(`Location must be root-relative: ${JSON.stringify(loc)}`);
+  }
+}
+
+/**
+ * Captures that feed Location must use safe char classes (no `.+` / `.*`).
+ * Patterns must use PCRE `\z`, not `$`, so trailing LF cannot match.
+ * @param {string} confText
+ */
+function assertSafeCaptures(confText) {
+  if (/\(\?<[A-Za-z]+>\.\+/.test(confText) || /\(\?<[A-Za-z]+>\.\*/.test(confText)) {
+    throw new Error(
+      "unsafe nginx capture: named groups must not use .+ / .* (open redirect)",
+    );
+  }
+  for (const line of confText.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("~")) continue;
+    const m = trimmed.match(/^~\*?(\S+)\s+(\S+);$/);
+    if (!m) continue;
+    const pattern = m[1];
+    const withoutZ = pattern.replace(/\\z/g, "");
+    if (withoutZ.includes("$")) {
+      throw new Error(
+        `redirect pattern must use \\\\z not $: ${JSON.stringify(pattern)}`,
+      );
+    }
+  }
+}
 
 for (const name of names) {
   // Legacy catalog pages → /skill/<name>[/<doc>]
   legacyLines.push(
-    `    ~^/${name}(?:/|/index\\.html)?$                       /skill/${name};`,
+    `    ~^/${name}(?:/|/index\\.html)?\\z                       /skill/${name};`,
   );
   legacyLines.push(
-    `    ~^/${name}/(?<d>[A-Za-z0-9._-]+?)(?:/|/index\\.html)?$   /skill/${name}/$d;`,
+    `    ~^/${name}/(?<d>[A-Za-z0-9._-]+?)(?:/|/index\\.html)?\\z   /skill/${name}/$d;`,
   );
 
   // /files/<name>/… → /skill/<name>/… ; bare /files/<name>/ → SKILL.md
+  // Trailing slash on file path stripped here so /files/<name>/<file>/ is one hop.
   filesLines.push(
-    `    ~^/files/${name}/?$                                   /skill/${name}/SKILL.md;`,
+    `    ~^/files/${name}/?\\z                                   /skill/${name}/SKILL.md;`,
   );
   filesLines.push(
-    `    ~^/files/${name}/(?<p>.+)$                            /skill/${name}/$p;`,
+    `    ~^/files/${name}/(?<p>${SAFE_PATH}+?)/?\\z              /skill/${name}/$p;`,
   );
 
   // Case-normalize only the skill segment under /skill/
   caseLines.push(
-    `    ~^/skill/${name}(?:[/.]|$)                           "";`,
+    `    ~^/skill/${name}(?:[/.]|\\z)                           "";`,
   );
   caseLines.push(
-    `    ~*^/skill/${name}(?<r>(?:[/.].*[^/])?)/?$            /skill/${name}$r;`,
+    `    ~*^/skill/${name}(?<r>(?:[/.]${SAFE_PATH}*[A-Za-z0-9._-])?)/?\\z  /skill/${name}$r;`,
   );
 
   const upper = name
@@ -81,8 +142,16 @@ for (const name of names) {
   cases.push(`/files/${name}/\t301\t/skill/${name}/SKILL.md`);
   cases.push(`/files/${name}\t301\t/skill/${name}/SKILL.md`);
   cases.push(`/files/${name}/SKILL.md\t301\t/skill/${name}/SKILL.md`);
+  cases.push(`/files/${name}/SKILL.md/\t301\t/skill/${name}/SKILL.md`);
   cases.push(`/files/${name}/states.md\t301\t/skill/${name}/states.md`);
+  cases.push(`/files/${name}/states.md/\t301\t/skill/${name}/states.md`);
   cases.push(`/files/${name}/states.md?x=1\t301\t/skill/${name}/states.md?x=1`);
+  // CR/LF/TAB/backslash in path segment must not become Location
+  cases.push(`/files/${name}/a%0d\t404\t`);
+  cases.push(`/files/${name}/a%0a\t404\t`);
+  cases.push(`/skill/${upper}/a%0d\t404\t`);
+  cases.push(`/skill/${upper}/%09x\t404\t`);
+  cases.push(`/skill/${upper}/%5Cx\t404\t`);
 
   // Supporting docs from the skill folder (extensionless rendered pages)
   const skillDir = path.join(repoRoot, name);
@@ -111,10 +180,55 @@ ${caseLines.join("\n")}
 map $uri $strip_slash {
     default "";
     /index.html                /;
-    ~^(?<p>/.+)/index\\.html$   $p;
-    ~^(?<p>/.+)/$              $p;
+    ~^(?<p>/${SAFE_STRIP})/index\\.html\\z   $p;
+    ~^(?<p>/${SAFE_STRIP})/\\z              $p;
 }
 `;
+
+assertSafeCaptures(conf);
+
+for (const line of cases) {
+  if (!line || line.startsWith("#")) continue;
+  const parts = line.split("\t");
+  const req = parts[0] ?? "";
+  const status = parts[1] ?? "";
+  const loc = parts[2] ?? "";
+  assertSafeLocation(loc);
+  // Targets built from the request path: probe requests must never be 301 rows,
+  // and any 301 Location must itself be a safe root-relative path.
+  const pathOnly = req.split("?")[0];
+  if (status === "301" && UNSAFE_REQ_RE.test(pathOnly)) {
+    throw new Error(
+      `301 case must not use open-redirect probe request: ${JSON.stringify(req)}`,
+    );
+  }
+  if (status === "301" && loc) {
+    // Concrete Location is what nginx emits for this request path — validate fully.
+    assertSafeLocation(loc);
+    if (UNSAFE_REQ_RE.test(loc) || /[\x00-\x1f\x7f\\]/.test(loc)) {
+      throw new Error(
+        `Location derived from request path is unsafe: ${req} -> ${loc}`,
+      );
+    }
+  }
+}
+for (const block of [legacyLines, filesLines, caseLines]) {
+  for (const line of block) {
+    const m = line.match(/^\s+~\S+\s+(\S+);$/);
+    if (!m) continue;
+    const loc = m[1].replace(/^"|"$/g, "");
+    if (loc === '""' || loc === "") continue;
+    if (loc.includes("$")) {
+      // Capture expansions: charset constrained by SAFE_* / [A-Za-z0-9._-] above.
+      // Still reject templates that start with // or embed backslash literals.
+      if (loc.startsWith("//") || loc.includes("\\")) {
+        throw new Error(`unsafe Location template: ${JSON.stringify(loc)}`);
+      }
+      continue;
+    }
+    assertSafeLocation(loc);
+  }
+}
 
 const casesBody = cases.join("\n") + "\n";
 
