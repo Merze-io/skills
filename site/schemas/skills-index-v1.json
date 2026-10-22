@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://skills.merze.ai/schemas/skills-index-v1.json",
+  "title": "Merze Skills index v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["$schema", "schema_version", "site", "skills"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "https://skills.merze.ai/schemas/skills-index-v1.json"
+    },
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "url",
+        "install_docs",
+        "discovery",
+        "all_zip",
+        "all_tar_gz",
+        "all_sha256"
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string" },
+        "install_docs": { "type": "string" },
+        "discovery": { "type": "string" },
+        "all_zip": { "type": "string" },
+        "all_tar_gz": { "type": "string" },
+        "all_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "title",
+          "description",
+          "version",
+          "license",
+          "category",
+          "tags",
+          "updated_at",
+          "url",
+          "skill_md_url",
+          "json_url",
+          "zip_url",
+          "tar_gz_url",
+          "zip_sha256",
+          "skill_md_sha256",
+          "files",
+          "install"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"
+          },
+          "title": { "type": "string" },
+          "description": { "type": "string", "minLength": 1 },
+          "version": { "type": ["string", "null"] },
+          "license": { "type": ["string", "null"] },
+          "category": { "type": ["string", "null"] },
+          "tags": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "updated_at": { "type": "string" },
+          "url": { "type": "string" },
+          "skill_md_url": { "type": "string" },
+          "json_url": { "type": "string" },
+          "zip_url": { "type": "string" },
+          "tar_gz_url": { "type": "string" },
+          "zip_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "skill_md_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "files": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "url", "size", "sha256", "media_type"],
+              "properties": {
+                "path": { "type": "string" },
+                "url": { "type": "string" },
+                "size": { "type": "integer", "minimum": 0 },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "media_type": { "type": "string" }
+              }
+            }
+          },
+          "install": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["npx", "npx_scoped", "curl", "powershell"],
+            "properties": {
+              "npx": { "type": "string" },
+              "npx_scoped": { "type": "string" },
+              "curl": { "type": "string" },
+              "powershell": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

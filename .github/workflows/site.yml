@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
@@ -46,12 +48,81 @@ jobs:
           grep -q 'href="#skill-version-mandatory"' dist/us-llc-state-cost/index.html
           test -f dist/files/us-llc-state-cost/SKILL.md
           test -f dist/files/us-llc-state-cost/states.md
+          # Distribution artifacts (PR-1 / MER-1098)
+          test -f dist/skill/us-llc-state-cost/SKILL.md
+          test -f dist/skill/us-llc-state-cost/states.md
+          test -f dist/skill/us-llc-state-cost.zip
+          test -f dist/skill/us-llc-state-cost.tar.gz
+          test -f dist/skills.zip
+          test -f dist/.well-known/agent-skills/index.json
+          test -f dist/skill/us-llc-state-cost/.well-known/agent-skills/index.json
+          test -f dist/llms.txt
+          test -f dist/llms-full.txt
+          test -f dist/schemas/skills-index-v1.json
+          ! grep -q '"github"' dist/skills.json
+          ! grep -q 'generatedAt' dist/skills.json
+          grep -q '"schema_version": 1' dist/skills.json
+          grep -q '"type": "archive"' dist/.well-known/agent-skills/index.json
 
       - name: Fail if dist contains disallowed github mentions
         working-directory: site
         run: |
           # Single scanner (also runs at end of npm run build). Policy in DESIGN.md.
           node scripts/scrub-github.mjs
+
+      - name: Verify distribution (cmp, schemas, digests)
+        working-directory: site
+        run: npm run verify-dist
+
+      - name: Reproducible distribution artifacts
+        working-directory: site
+        run: |
+          set -euo pipefail
+          rm -rf dist2
+          mv dist dist1
+          npm run build
+          mv dist dist2
+          mv dist1 dist
+          python3 - <<'PY'
+          import hashlib, pathlib, sys
+          dist = pathlib.Path("dist")
+          dist2 = pathlib.Path("dist2")
+          patterns = [
+              "skill/**",
+              "skills.zip",
+              "skills.tar.gz",
+              "skills.json",
+              "llms.txt",
+              "llms-full.txt",
+              ".well-known/**",
+              "schemas/**",
+          ]
+          files = []
+          for pat in patterns:
+              files.extend(dist.glob(pat))
+          files = sorted({p for p in files if p.is_file()})
+          if not files:
+              print("No distribution files matched")
+              sys.exit(1)
+          bad = []
+          for p in files:
+              rel = p.relative_to(dist)
+              q = dist2 / rel
+              if not q.is_file():
+                  bad.append(f"missing in dist2: {rel}")
+                  continue
+              h1 = hashlib.sha256(p.read_bytes()).hexdigest()
+              h2 = hashlib.sha256(q.read_bytes()).hexdigest()
+              if h1 != h2:
+                  bad.append(f"{rel}: {h1} != {h2}")
+          if bad:
+              print("Reproducibility failures:")
+              for b in bad:
+                  print(" ", b)
+              sys.exit(1)
+          print(f"Reproducible: {len(files)} distribution file(s)")
+          PY
+          rm -rf dist2
 
       - name: Skill allowlist, path rule, nested install, github gate self-test
         working-directory: site
@@ -435,6 +506,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22"
 
       - name: Docker build and smoke
         run: |
@@ -481,4 +558,77 @@ jobs:
           test "$files_dir_code" = "404"
           # Supporting file also served
           curl -sf http://127.0.0.1:18080/files/us-llc-state-cost/states.md | head -1 | grep -q .
+
+          # --- PR-1 distribution checks ---
+          ORIGIN=http://127.0.0.1:18080
+          hdr=$(curl -sI "$ORIGIN/skill/us-llc-state-cost/SKILL.md")
+          echo "$hdr" | head -1 | grep -q '200'
+          echo "$hdr" | grep -qi 'content-type: text/markdown'
+          echo "$hdr" | grep -qi 'charset=utf-8'
+          echo "$hdr" | grep -qi 'access-control-allow-origin: \*'
+          etag=$(echo "$hdr" | tr -d '\r' | awk -F': ' 'tolower($1)=="etag"{print $2}')
+          test -n "$etag"
+          code304=$(curl -s -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag" "$ORIGIN/skill/us-llc-state-cost/SKILL.md")
+          test "$code304" = "304"
+          curl -fsS "$ORIGIN/skill/us-llc-state-cost/SKILL.md" -o /tmp/served-SKILL.md
+          cmp -s /tmp/served-SKILL.md us-llc-state-cost/SKILL.md
+          curl -fsS "$ORIGIN/skill/us-llc-state-cost/states.md" -o /tmp/served-states.md
+          cmp -s /tmp/served-states.md us-llc-state-cost/states.md
+
+          curl -fsS "$ORIGIN/skill/us-llc-state-cost.zip" -o /tmp/skill.zip
+          rm -rf /tmp/zip-out && mkdir /tmp/zip-out
+          python3 - <<'PY'
+          import zipfile
+          z = zipfile.ZipFile("/tmp/skill.zip")
+          names = sorted(z.namelist())
+          assert names == ["SKILL.md", "states.md"], names
+          z.extractall("/tmp/zip-out")
+          PY
+          cmp -s /tmp/zip-out/SKILL.md us-llc-state-cost/SKILL.md
+          cmp -s /tmp/zip-out/states.md us-llc-state-cost/states.md
+
+          curl -fsS "$ORIGIN/skills.zip" -o /tmp/skills.zip
+          python3 - <<'PY'
+          import zipfile
+          z = zipfile.ZipFile("/tmp/skills.zip")
+          names = sorted(z.namelist())
+          assert "us-llc-state-cost/SKILL.md" in names
+          assert "us-llc-state-cost/states.md" in names
+          PY
+
+          curl -fsS "$ORIGIN/.well-known/agent-skills/index.json" -o /tmp/discovery.json
+          python3 - <<'PY'
+          import json
+          d = json.load(open("/tmp/discovery.json"))
+          assert d["$schema"].endswith("discovery/0.2.0/schema.json")
+          assert d["skills"][0]["type"] == "archive"
+          assert d["skills"][0]["name"] == "us-llc-state-cost"
+          PY
+
+          TMPHOME=$(mktemp -d)
+          TMPPROJ=$(mktemp -d)
+          (
+            cd "$TMPPROJ"
+            HOME="$TMPHOME" npx -y skills@1.7.4 add "$ORIGIN" --skill us-llc-state-cost -a claude-code -y
+          )
+          found=$(find "$TMPPROJ" "$TMPHOME" -type f -name SKILL.md | head -1)
+          test -n "$found"
+          skill_dir=$(dirname "$found")
+          cmp -s "$skill_dir/SKILL.md" us-llc-state-cost/SKILL.md
+          cmp -s "$skill_dir/states.md" us-llc-state-cost/states.md
+          echo "npx root install OK: $skill_dir"
+
+          TMPHOME2=$(mktemp -d)
+          TMPPROJ2=$(mktemp -d)
+          (
+            cd "$TMPPROJ2"
+            HOME="$TMPHOME2" npx -y skills@1.7.4 add "$ORIGIN/skill/us-llc-state-cost" --skill us-llc-state-cost -a claude-code -y
+          )
+          found2=$(find "$TMPPROJ2" "$TMPHOME2" -type f -name SKILL.md | head -1)
+          test -n "$found2"
+          skill_dir2=$(dirname "$found2")
+          cmp -s "$skill_dir2/SKILL.md" us-llc-state-cost/SKILL.md
+          cmp -s "$skill_dir2/states.md" us-llc-state-cost/states.md
+          echo "npx scoped install OK: $skill_dir2"
+
           echo "Docker smoke OK"

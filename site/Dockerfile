@@ -17,6 +17,7 @@ FROM nginxinc/nginx-unprivileged:1.27-alpine
 USER root
 RUN mkdir -p /etc/nginx/snippets
 COPY site/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
+COPY site/nginx-dist-headers.conf /etc/nginx/snippets/dist-headers.conf
 COPY site/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /repo/site/dist /usr/share/nginx/html
 USER 101
