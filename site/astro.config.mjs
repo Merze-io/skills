@@ -92,14 +92,4 @@ export default defineConfig({
       wrap: true,
     },
   },
-  vite: {
-    define: {
-      "import.meta.env.SOURCE_DATE": JSON.stringify(
-        process.env.SOURCE_DATE ?? process.env.SOURCE_COMMIT_DATE ?? "",
-      ),
-      "import.meta.env.SOURCE_COMMIT": JSON.stringify(
-        process.env.SOURCE_COMMIT ?? "",
-      ),
-    },
-  },
 });

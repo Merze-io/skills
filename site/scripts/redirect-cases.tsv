@@ -6,6 +6,12 @@
 /about/?x=1	301	/about?x=1
 /healthz	200	
 /skills.json	200	
+/%5Cevil.com/	404	
+/%09/evil.com/	404	
+/%0Devil.com	404	
+/%0Aevil.com	404	
+//evil.com/	404	
+//evil.com	404	
 /us-llc-state-cost	301	/skill/us-llc-state-cost
 /us-llc-state-cost/	301	/skill/us-llc-state-cost
 /us-llc-state-cost/index.html	301	/skill/us-llc-state-cost
@@ -19,8 +25,13 @@
 /files/us-llc-state-cost/	301	/skill/us-llc-state-cost/SKILL.md
 /files/us-llc-state-cost	301	/skill/us-llc-state-cost/SKILL.md
 /files/us-llc-state-cost/SKILL.md	301	/skill/us-llc-state-cost/SKILL.md
+/files/us-llc-state-cost/SKILL.md/	301	/skill/us-llc-state-cost/SKILL.md
 /files/us-llc-state-cost/states.md	301	/skill/us-llc-state-cost/states.md
+/files/us-llc-state-cost/states.md/	301	/skill/us-llc-state-cost/states.md
 /files/us-llc-state-cost/states.md?x=1	301	/skill/us-llc-state-cost/states.md?x=1
+/files/us-llc-state-cost/a%0d	404	
+/files/us-llc-state-cost/a%0a	404	
+/skill/Us-Llc-State-Cost/a%0d	404	
 /us-llc-state-cost/states	301	/skill/us-llc-state-cost/states
 /us-llc-state-cost/states/	301	/skill/us-llc-state-cost/states
 /us-llc-state-cost/states/index.html	301	/skill/us-llc-state-cost/states

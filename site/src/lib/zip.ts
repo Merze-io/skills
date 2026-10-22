@@ -11,10 +11,7 @@ export type ArchiveFile = {
  * Fixed DOS local time. fflate reads mtime via local getters (getFullYear/…),
  * so Date.UTC(1980,…) shifts with TZ and America/* throws "date not in range".
  * `new Date(1980, 0, 1)` is local-midnight on purpose → stable zip bytes.
- *
- * When SOURCE_DATE_EPOCH is set (reproducible builds), use UTC calendar
- * components as local Date fields so zip bytes stay TZ-stable. Epoch is for
- * archive mtimes only — not skills.json updated_at (see skill-dates.json).
+ * Digests must not depend on SOURCE_DATE_EPOCH (or any build arg).
  */
 const DOS_1980_01_01 = new Date(1980, 0, 1, 0, 0, 0);
 /** Unix mode 0644 regular file in ZIP external attributes. */
@@ -22,44 +19,14 @@ const EXT_ATTR_0644 = (0o100644 << 16) >>> 0;
 /** ZIP host OS = Unix so unzip honours Unix external attrs (not fat). */
 const ZIP_OS_UNIX = 3;
 
-/** Archive entry mtime from SOURCE_DATE_EPOCH, else DOS 1980-01-01. */
-export function archiveMtimeDate(): Date {
-  const epoch = process.env.SOURCE_DATE_EPOCH;
-  if (epoch && /^\d+$/.test(epoch)) {
-    const u = new Date(Number(epoch) * 1000);
-    if (!Number.isNaN(u.getTime())) {
-      return new Date(
-        u.getUTCFullYear(),
-        u.getUTCMonth(),
-        u.getUTCDate(),
-        u.getUTCHours(),
-        u.getUTCMinutes(),
-        u.getUTCSeconds(),
-      );
-    }
-  }
-  return DOS_1980_01_01;
-}
-
-/** Unix seconds for tar/gzip headers from SOURCE_DATE_EPOCH, else 0. */
-export function archiveMtimeUnix(): number {
-  const epoch = process.env.SOURCE_DATE_EPOCH;
-  if (epoch && /^\d+$/.test(epoch)) {
-    const n = Number(epoch);
-    if (Number.isFinite(n) && n >= 0) return Math.floor(n);
-  }
-  return 0;
-}
-
 function sortedFiles(files: ArchiveFile[]): ArchiveFile[] {
   return [...files].sort((a, b) =>
     a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
   );
 }
 
-/** Deterministic zip: sorted entries, fixed/SOURCE_DATE_EPOCH DOS time, mode 0644, deflate 9. */
+/** Deterministic zip: sorted entries, fixed DOS 1980-01-01, mode 0644, deflate 9. */
 export function buildZip(files: ArchiveFile[]): Uint8Array {
-  const mtime = archiveMtimeDate();
   const zippable: Record<
     string,
     [
@@ -72,7 +39,7 @@ export function buildZip(files: ArchiveFile[]): Uint8Array {
       f.data,
       {
         level: 9,
-        mtime,
+        mtime: DOS_1980_01_01,
         attrs: EXT_ATTR_0644,
         os: ZIP_OS_UNIX,
       },
@@ -81,11 +48,10 @@ export function buildZip(files: ArchiveFile[]): Uint8Array {
   return zipSync(zippable, { level: 9 });
 }
 
-/** Write a deterministic ustar tar, then gzip (SOURCE_DATE_EPOCH or 0; OS byte 255). */
+/** Write a deterministic ustar tar, then gzip (mtime 0; OS byte 255). */
 export function buildTarGz(files: ArchiveFile[]): Uint8Array {
-  const mtimeUnix = archiveMtimeUnix();
-  const tar = buildUstar(sortedFiles(files), mtimeUnix);
-  const gz = gzipSync(Buffer.from(tar), { level: 9, mtime: mtimeUnix });
+  const tar = buildUstar(sortedFiles(files), 0);
+  const gz = gzipSync(Buffer.from(tar), { level: 9, mtime: 0 });
   // Force OS = 255 (unknown) for cross-platform reproducibility
   gz[9] = 255;
   return new Uint8Array(gz);
