@@ -708,14 +708,27 @@ jobs:
                   failed.append((req, "relative Location", want_loc, status, loc))
                   continue
               if want_status == "301" and want_loc:
-                  # one hop: following redirect yields non-3xx
+                  # one hop: final status non-3xx after ≤1 redirect
+                  # (curl -sI -L prints every hop; use -w final code + num_redirects)
                   followed = subprocess.check_output(
-                      ["curl", "-sI", "-L", "--max-redirs", "2", origin + req],
+                      [
+                          "curl",
+                          "-s",
+                          "-o",
+                          "/dev/null",
+                          "-w",
+                          "%{http_code} %{num_redirects}",
+                          "-L",
+                          "--max-redirs",
+                          "2",
+                          origin + req,
+                      ],
                       text=True,
-                  ).replace("\r", "")
-                  final = followed.splitlines()[0].split()[1]
-                  if final.startswith("3"):
-                      failed.append((req, "one-hop", final, status, loc))
+                  ).strip()
+                  parts_f = followed.split()
+                  final, nredir = parts_f[0], int(parts_f[1]) if len(parts_f) > 1 else -1
+                  if final.startswith("3") or nredir > 1:
+                      failed.append((req, "one-hop", f"{final}/{nredir}", status, loc))
           if failed:
               print("Redirect failures:")
               for f in failed:
