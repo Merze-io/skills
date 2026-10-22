@@ -739,7 +739,8 @@ jobs:
                   ).strip()
                   parts_f = followed.split()
                   final, nredir = parts_f[0], int(parts_f[1]) if len(parts_f) > 1 else -1
-                  if final.startswith("3") or nredir > 1:
+                  # Every 301 must land on a real page in exactly one hop.
+                  if final != "200" or nredir != 1:
                       failed.append((req, "one-hop", f"{final}/{nredir}", status, loc))
           if failed:
               print("Redirect failures:")
@@ -884,12 +885,13 @@ jobs:
             HOME="$TMPHOME" npx -y skills@1.7.4 check 2>&1 | tee /tmp/skills-check.out
           )
           # Exit 0 already required by set -e; also require real status text
-          if ! grep -Eiq 'up to date|no updates|already up.to.date|Checking for skill updates' /tmp/skills-check.out; then
-            echo "skills check output missing expected status:"
+          # Require a positive "up to date" status — do not match the "Checking…" banner alone.
+          if ! grep -Eiq 'up to date|no updates|already up.to.date|already installed|is current' /tmp/skills-check.out; then
+            echo "skills check output missing expected up-to-date status:"
             cat /tmp/skills-check.out
             exit 1
           fi
-          if grep -Eiq 'update available|outdated|needs update|digest mismatch|will be updated' /tmp/skills-check.out; then
+          if grep -Eiq 'update available|outdated|needs update|digest mismatch|will be updated|Updated [1-9]' /tmp/skills-check.out; then
             echo "skills check reported drift unexpectedly:"
             cat /tmp/skills-check.out
             exit 1
