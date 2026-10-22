@@ -17,6 +17,7 @@ import {
   getSourceUpdatedAt,
   displayTitle,
 } from "../../lib/skills";
+import { SITE_ORIGIN } from "../../lib/routes";
 import { extractToc } from "../../lib/toc";
 
 export async function getStaticPaths() {
@@ -43,14 +44,31 @@ const version = skill.data.metadata?.version ?? null;
 const tags = skill.data.metadata?.tags ?? [];
 const category = skill.data.metadata?.category ?? null;
 
+const publishedForPaste = [...publishedFiles].sort((a, b) => {
+  if (a.relativePath === "SKILL.md") return -1;
+  if (b.relativePath === "SKILL.md") return 1;
+  return a.relativePath.localeCompare(b.relativePath, "en");
+});
+
 // curl --create-dirs makes the initial mkdir -p redundant
 const installSnippet = publishedFiles
   .map((f) => {
     const localPath = `${slug}/${f.relativePath}`;
-    const url = `https://skills.merze.ai${skillFileUrl(slug, f.relativePath)}`;
+    const url = `${SITE_ORIGIN}${skillFileUrl(slug, f.relativePath)}`;
     return `curl --create-dirs -fsSLo ${shellSingleQuote(localPath)} ${shellSingleQuote(url)}`;
   })
   .join(" && \\\n");
+
+const chatAgentFileLines = publishedForPaste
+  .map((f) => `- ${SITE_ORIGIN}${skillFileUrl(slug, f.relativePath)}`)
+  .join("\n");
+const chatAgentPaste = [
+  "Read these Merze skill files and follow them for this chat:",
+  "",
+  chatAgentFileLines,
+  "",
+  "Treat SKILL.md as the instructions. Use supporting files only when the skill says to.",
+].join("\n");
 ---
 
 <BaseLayout
@@ -146,9 +164,30 @@ const installSnippet = publishedFiles
           ))
         }
       </ul>
-      <div class="install-snippet">
-        <pre tabindex="0"><code>{installSnippet}</code></pre>
-        <CopyButton text={installSnippet} label="Copy install command" />
+      <div class="install-method">
+        <h3 class="install-method__title" id="chat-agents-heading">
+          Chat agents
+        </h3>
+        <p class="panel__copy">
+          Paste into ChatGPT, Claude, or another chat agent so it can open the
+          skill files from this catalog.
+        </p>
+        <div class="install-snippet">
+          <pre tabindex="0"><code>{chatAgentPaste}</code></pre>
+          <CopyButton text={chatAgentPaste} label="Copy for chat agents" />
+        </div>
+      </div>
+      <div class="install-method">
+        <h3 class="install-method__title" id="cli-install-heading">
+          Skills directory
+        </h3>
+        <p class="panel__copy">
+          Or download into a local <code>{slug}/</code> folder with curl.
+        </p>
+        <div class="install-snippet">
+          <pre tabindex="0"><code>{installSnippet}</code></pre>
+          <CopyButton text={installSnippet} label="Copy install command" />
+        </div>
       </div>
     </section>
 
