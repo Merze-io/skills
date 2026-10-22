@@ -1,0 +1,92 @@
+---
+import interWoff2 from "@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url";
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+  canonicalPath?: string;
+}
+
+const {
+  title,
+  description = "Public Agent Skills for Merze — browse and install skills from Merze-io/skills.",
+  canonicalPath = "/",
+} = Astro.props;
+
+const canonical = new URL(canonicalPath, Astro.site).href;
+const pageTitle =
+  title === "Skills"
+    ? "skills.merze.ai — Merze Agent Skills"
+    : `${title} · skills.merze.ai`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#112E51" />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link
+      rel="preload"
+      href={interWoff2}
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content={new URL("/favicon.png", Astro.site).href} />
+    <meta name="twitter:card" content="summary" />
+    <title>{pageTitle}</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="brand" href="/">
+          <img src="/logo.png" alt="Merze" width="126" height="28" />
+          <span class="brand__label">skills</span>
+        </a>
+        <nav class="site-nav" aria-label="Primary">
+          <a href="/" aria-current={canonicalPath === "/" ? "page" : undefined}
+            >Catalog</a
+          >
+          <a
+            href="/about/"
+            aria-current={canonicalPath === "/about/" ? "page" : undefined}
+            >About</a
+          >
+          <a
+            href="https://github.com/Merze-io/skills"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+          <a href="https://merze.ai" rel="noopener noreferrer">merze.ai</a>
+        </nav>
+      </div>
+    </header>
+    <main id="main" class="site-main">
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <p>
+          Public Agent Skills for
+          <a href="https://merze.ai">Merze</a>. Source on
+          <a href="https://github.com/Merze-io/skills">GitHub</a>.
+        </p>
+        <p>
+          <a href="/skills.json">skills.json</a>
+          ·
+          <a href="/sitemap-index.xml">Sitemap</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

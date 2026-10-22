@@ -1,0 +1,175 @@
+---
+import { render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import CopyButton from "../../components/CopyButton.astro";
+import Icon from "../../components/Icon.astro";
+import {
+  extractWhenToUseFromBody,
+  getAllSkills,
+  getSupportingFiles,
+  githubBlobUrl,
+  githubEditUrl,
+  installCommand,
+  parseDescription,
+  skillSlug,
+  formatUpdated,
+  getSourceUpdatedAt,
+} from "../../lib/skills";
+import { extractToc } from "../../lib/toc";
+
+export async function getStaticPaths() {
+  const skills = await getAllSkills();
+  return skills.map((skill) => ({
+    params: { slug: skillSlug(skill) },
+    props: { skill },
+  }));
+}
+
+const { skill } = Astro.props;
+const slug = skillSlug(skill);
+const parts = parseDescription(skill.data.description);
+const { Content } = await render(skill);
+const body = skill.body ?? "";
+const whenFromBody =
+  parts.useWhen.length === 0 ? extractWhenToUseFromBody(body) : null;
+const toc = extractToc(body);
+const supporting = await getSupportingFiles(slug);
+const cmd = installCommand(slug);
+const updated = formatUpdated(getSourceUpdatedAt());
+const version = skill.data.metadata?.version ?? null;
+---
+
+<BaseLayout
+  title={skill.data.name}
+  description={parts.summary}
+  canonicalPath={`/${slug}/`}
+>
+  <article data-pagefind-body>
+    <header>
+      <h1>{skill.data.name}</h1>
+      <p class="lede">{parts.summary}</p>
+      <div class="skill-meta">
+        {version && <span class="badge">v{version}</span>}
+        {updated && (
+          <span>
+            Updated <time datetime={getSourceUpdatedAt()!}>{updated}</time>
+          </span>
+        )}
+        <a href={githubBlobUrl(slug)} rel="noopener noreferrer">
+          <Icon name="github" size={16} />
+          View source on GitHub
+        </a>
+        <a href={githubEditUrl(slug)} rel="noopener noreferrer">
+          <Icon name="external" size={16} />
+          Edit
+        </a>
+      </div>
+    </header>
+
+    {
+      (parts.useWhen.length > 0 ||
+        parts.notFor.length > 0 ||
+        whenFromBody) && (
+        <section class="panel" aria-labelledby="when-heading">
+          <h2 class="panel__title" id="when-heading">
+            When to use
+          </h2>
+          {parts.useWhen.length > 0 ? (
+            <ul>
+              {parts.useWhen.map((s) => (
+                <li>{s}</li>
+              ))}
+            </ul>
+          ) : whenFromBody ? (
+            <p>{whenFromBody}</p>
+          ) : parts.fallbackFull ? (
+            <p>{parts.fallbackFull}</p>
+          ) : null}
+          {parts.notFor.length > 0 && (
+            <>
+              <p class="panel__title" style="margin-top:1rem">
+                Not for
+              </p>
+              <ul>
+                {parts.notFor.map((s) => (
+                  <li>{s}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )
+    }
+
+    <section class="panel" aria-labelledby="install-heading">
+      <h2 class="panel__title" id="install-heading">Install</h2>
+      <div class="install-box">
+        <code tabindex="0">{cmd}</code>
+        <CopyButton text={cmd} />
+      </div>
+    </section>
+
+    {
+      supporting.length > 0 && (
+        <section class="panel" aria-labelledby="files-heading">
+          <h2 class="panel__title" id="files-heading">
+            Supporting files
+          </h2>
+          <ul>
+            {supporting.map((file) => {
+              const fileSlug = file.id
+                .replace(/\\/g, "/")
+                .split("/")
+                .pop()!
+                .replace(/\.md$/i, "");
+              return (
+                <li>
+                  <a href={`/${slug}/${fileSlug}/`}>
+                    <Icon name="file" size={14} />
+                    {fileSlug}.md
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )
+    }
+
+    <div class="layout-detail" style="margin-top:2rem">
+      <div class="prose">
+        <Content />
+      </div>
+      {
+        toc.length > 0 && (
+          <aside class="toc" aria-labelledby="toc-heading">
+            <p class="toc__title" id="toc-heading">
+              On this page
+            </p>
+            <nav>
+              <ol>
+                {toc.map((item) => (
+                  <li class={`toc-depth-${item.depth}`}>
+                    <a href={`#${item.id}`}>{item.text}</a>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          </aside>
+        )
+      }
+    </div>
+  </article>
+</BaseLayout>
+
+<script>
+  // Wrap tables for horizontal scroll on small screens
+  document.querySelectorAll(".prose table").forEach((table) => {
+    if (table.parentElement?.classList.contains("table-wrap")) return;
+    const wrap = document.createElement("div");
+    wrap.className = "table-wrap";
+    wrap.tabIndex = 0;
+    table.parentElement?.insertBefore(wrap, table);
+    wrap.appendChild(table);
+  });
+</script>

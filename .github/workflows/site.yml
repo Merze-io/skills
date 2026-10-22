@@ -1,0 +1,273 @@
+name: site
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        working-directory: site
+        run: npm ci
+
+      - name: Build
+        working-directory: site
+        run: npm run build
+
+      - name: Verify catalog artifacts
+        working-directory: site
+        run: |
+          test -f dist/healthz
+          test -f dist/skills.json
+          test -f dist/robots.txt
+          test -f dist/404.html
+          test -d dist/pagefind
+          test -f dist/us-llc-state-cost/index.html
+          test -f dist/us-llc-state-cost/states/index.html
+          test -f dist/logo.png
+          grep -q 'ok' dist/healthz
+          grep -q 'us-llc-state-cost' dist/skills.json
+          grep -q '/us-llc-state-cost/states/' dist/us-llc-state-cost/index.html
+          # TOC anchors must match heading ids (no user-content- clobber)
+          ! grep -q 'id="user-content-' dist/us-llc-state-cost/index.html
+          grep -q 'class="heading-anchor"' dist/us-llc-state-cost/index.html
+          grep -q 'id="skill-version-mandatory"' dist/us-llc-state-cost/index.html
+          grep -q 'href="#skill-version-mandatory"' dist/us-llc-state-cost/index.html
+
+      - name: Link check (local routes + #fragments)
+        working-directory: site
+        run: |
+          set -euo pipefail
+          check() {
+            local url="$1"
+            local file
+            if [[ "$url" == */ ]]; then
+              file="dist${url}index.html"
+            else
+              file="dist${url}"
+            fi
+            if [[ ! -f "$file" ]]; then
+              echo "Missing: $url -> $file"
+              return 1
+            fi
+            echo "OK $url"
+          }
+          check /
+          check /about/
+          check /us-llc-state-cost/
+          check /us-llc-state-cost/states/
+          check /skills.json
+          check /healthz
+          check /404.html
+          check /robots.txt
+          check /favicon.png
+          check /logo.png
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, sys
+          dist = Path("dist")
+          hrefs = set()
+          fragments = []  # (html_path, page_url_path, fragment)
+          for html in dist.rglob("*.html"):
+              text = html.read_text(encoding="utf-8", errors="ignore")
+              rel = html.relative_to(dist).as_posix()
+              page = "/" + rel.replace("index.html", "")
+              for m in re.finditer(r'''(?:href|src)=["']([^"'#?]*)(#[^"']+)?["']''', text):
+                  path, frag = m.group(1), m.group(2)
+                  if path.startswith("http") or path.startswith("mailto:") or path.startswith("//"):
+                      continue
+                  if path.startswith("/"):
+                      hrefs.add(path)
+                  if frag and (not path or path.startswith("/") or path == ""):
+                      # in-page or root-relative with fragment
+                      target_page = page if not path else path
+                      fragments.append((rel, target_page, frag[1:]))
+
+          missing = []
+          for href in sorted(hrefs):
+              if href.startswith("//"):
+                  continue
+              r = href.lstrip("/")
+              candidates = [dist / r, dist / r / "index.html", dist / f"{r}.html"]
+              if any(p.exists() for p in candidates):
+                  continue
+              if (dist / r.rstrip("/")).is_dir() and (dist / r.rstrip("/") / "index.html").exists():
+                  continue
+              missing.append(href)
+
+          frag_missing = []
+          for rel, target_page, frag_id in fragments:
+              if target_page.endswith("/"):
+                  target_file = dist / target_page.lstrip("/") / "index.html"
+              elif target_page.endswith(".html"):
+                  target_file = dist / target_page.lstrip("/")
+              else:
+                  target_file = dist / target_page.lstrip("/") / "index.html"
+                  if not target_file.exists():
+                      target_file = dist / (target_page.lstrip("/") + ".html")
+              if not target_file.exists():
+                  # skip external-ish
+                  continue
+              html = target_file.read_text(encoding="utf-8", errors="ignore")
+              if f'id="{frag_id}"' not in html and f"id='{frag_id}'" not in html:
+                  frag_missing.append(f"{rel} -> {target_page}#{frag_id}")
+
+          if missing or frag_missing:
+              if missing:
+                  print("Broken local links:")
+                  for m in missing:
+                      print(" ", m)
+              if frag_missing:
+                  print("Broken #fragments:")
+                  for m in frag_missing:
+                      print(" ", m)
+              sys.exit(1)
+          print(f"Checked {len(hrefs)} paths and {len(fragments)} fragments; all resolve.")
+          PY
+
+      - name: Bad frontmatter fixture fails build
+        working-directory: site
+        run: |
+          set -euo pipefail
+          FIX="../_ci-bad-skill-fixture"
+          mkdir -p "$FIX"
+          cat > "$FIX/SKILL.md" <<'EOF'
+          ---
+          name: not-matching-folder
+          description: ""
+          ---
+          # bad
+          EOF
+          # Underscore folders must be ignored — this must NOT fail the good build path.
+          # Use a non-underscore temp skill that should fail:
+          BAD="../zz-bad-frontmatter"
+          mkdir -p "$BAD"
+          cat > "$BAD/SKILL.md" <<'EOF'
+          ---
+          name: zz-bad-frontmatter
+          description: ""
+          ---
+          # bad
+          EOF
+          set +e
+          # NO_COLOR so Astro/Zod ANSI codes don't split the exact error strings
+          NO_COLOR=1 FORCE_COLOR=0 npm run build > /tmp/bad-fm-build.log 2>&1
+          code=$?
+          set -e
+          rm -rf "$FIX" "$BAD"
+          # Strip any residual ANSI (CI may still force color)
+          sed -i 's/\x1b\[[0-9;]*[mK]//g' /tmp/bad-fm-build.log
+          if [[ $code -eq 0 ]]; then
+            echo "Expected build to fail for empty description"
+            cat /tmp/bad-fm-build.log
+            exit 1
+          fi
+          # Exact path + Zod empty-description message so a vague failure can't pass
+          if ! grep -F 'zz-bad-frontmatter/SKILL.md' /tmp/bad-fm-build.log; then
+            echo "Expected error Location to include zz-bad-frontmatter/SKILL.md"
+            cat /tmp/bad-fm-build.log
+            exit 1
+          fi
+          if ! grep -F 'description: String must contain at least 1 character' /tmp/bad-fm-build.log; then
+            echo "Expected exact Zod empty-description error"
+            cat /tmp/bad-fm-build.log
+            exit 1
+          fi
+          echo "Bad frontmatter correctly failed the build"
+          # Restore a clean dist for later steps
+          npm run build
+
+      - name: Underscore draft folders are ignored
+        working-directory: site
+        run: |
+          set -euo pipefail
+          DRAFT="../_drafts"
+          mkdir -p "$DRAFT"
+          cat > "$DRAFT/SKILL.md" <<'EOF'
+          ---
+          name: totally-invalid!!!
+          description: ""
+          ---
+          # should be ignored
+          EOF
+          npm run build
+          test ! -d dist/_drafts
+          rm -rf "$DRAFT"
+          echo "_drafts ignored OK"
+
+      - name: Serve dist and run axe
+        working-directory: site
+        run: |
+          npx --yes serve@14.2.4 dist -l 4173 &
+          SERVE_PID=$!
+          trap 'kill $SERVE_PID 2>/dev/null || true' EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 0.5
+          done
+          AXE_PAGES=(
+            http://127.0.0.1:4173/
+            http://127.0.0.1:4173/us-llc-state-cost/
+            http://127.0.0.1:4173/us-llc-state-cost/states/
+            http://127.0.0.1:4173/about/
+            http://127.0.0.1:4173/404.html
+          )
+          npx --yes @axe-core/cli@4.10.1 "${AXE_PAGES[@]}" --exit
+          # Mobile width catch scrollable-region-focusable on overflowing <pre>/code
+          npx --yes @axe-core/cli@4.10.1 \
+            http://127.0.0.1:4173/ \
+            http://127.0.0.1:4173/us-llc-state-cost/ \
+            http://127.0.0.1:4173/us-llc-state-cost/states/ \
+            http://127.0.0.1:4173/about/ \
+            --chrome-options="window-size=360,800" \
+            --exit
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+
+      - name: Docker build and smoke
+        run: |
+          set -euo pipefail
+          docker build -f site/Dockerfile -t skills-merze-ai:ci .
+          cid=$(docker run -d -p 18080:8080 skills-merze-ai:ci)
+          trap 'docker rm -f "$cid" >/dev/null' EXIT
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:18080/healthz | grep -q ok; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://127.0.0.1:18080/healthz | grep -q ok
+          # 404 status + branded page
+          code=$(curl -s -o /tmp/404.html -w '%{http_code}' http://127.0.0.1:18080/no-such-page)
+          test "$code" = "404"
+          grep -qi 'not found' /tmp/404.html
+          # Security headers present on HTML and assets
+          curl -sI http://127.0.0.1:18080/ | grep -qi 'content-security-policy'
+          curl -sI http://127.0.0.1:18080/ | grep -qi 'x-content-type-options: nosniff'
+          curl -sI http://127.0.0.1:18080/ | grep -qi 'wasm-unsafe-eval'
+          # Real hashed _astro asset: 200 + CSP + immutable Cache-Control
+          asset=$(docker exec "$cid" sh -c 'ls /usr/share/nginx/html/_astro | head -1')
+          test -n "$asset"
+          asset_headers=$(curl -sI "http://127.0.0.1:18080/_astro/$asset")
+          echo "$asset_headers" | head -1 | grep -q '200'
+          echo "$asset_headers" | grep -qi 'content-security-policy'
+          echo "$asset_headers" | grep -qi 'wasm-unsafe-eval'
+          echo "$asset_headers" | grep -qi 'immutable'
+          # Slashless redirect must stay relative (no :8080 host port)
+          loc=$(curl -sI http://127.0.0.1:18080/us-llc-state-cost | tr -d '\r' | awk -F': ' 'tolower($1)=="location"{print $2}')
+          echo "Location: $loc"
+          echo "$loc" | grep -qv ':8080'
+          echo "$loc" | grep -q 'us-llc-state-cost/'
+          echo "Docker smoke OK"

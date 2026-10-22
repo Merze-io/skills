@@ -1,0 +1,58 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="About"
+  description="What Agent Skills are, how to install them, and how to contribute to Merze-io/skills."
+  canonicalPath="/about/"
+>
+  <article class="prose">
+    <h1>About Agent Skills</h1>
+    <p>
+      Agent Skills are folders of instructions that coding agents can load on
+      demand. Each skill is a directory with a <code>SKILL.md</code> file
+      (YAML frontmatter + markdown body) and optional supporting files.
+    </p>
+
+    <h2>Install a skill</h2>
+    <p>From the catalog detail page, copy the install command:</p>
+    <pre tabindex="0"><code>npx skills add Merze-io/skills --skill &lt;slug&gt;</code></pre>
+    <p>
+      Or browse the source on
+      <a href="https://github.com/Merze-io/skills">GitHub</a>.
+    </p>
+
+    <h2>Contribute a skill</h2>
+    <ol>
+      <li>
+        Create a folder at the repo root named with the skill slug
+        (lowercase letters, digits, and hyphens; max 64 characters).
+      </li>
+      <li>
+        Add <code>SKILL.md</code> with required frontmatter:
+        <ul>
+          <li><code>name</code> — must match the folder name</li>
+          <li><code>description</code> — 1–1024 characters</li>
+          <li>
+            Optional <code>metadata.version</code>, <code>source</code>,
+            <code>category</code>, <code>tags</code>
+          </li>
+        </ul>
+      </li>
+      <li>Open a pull request to <code>main</code>.</li>
+    </ol>
+    <p>
+      This site rebuilds from every root <code>*/SKILL.md</code>. Invalid
+      <code>name</code> or <code>description</code>, or a name/folder mismatch,
+      fails the build.
+    </p>
+
+    <h2>Merze</h2>
+    <p>
+      Skills are published by
+      <a href="https://merze.ai">Merze</a>. Questions or contributions welcome
+      via GitHub pull requests.
+    </p>
+  </article>
+</BaseLayout>

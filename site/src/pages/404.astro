@@ -1,0 +1,19 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PagefindSearch from "../components/PagefindSearch.astro";
+---
+
+<BaseLayout
+  title="Page not found"
+  description="That page is not in the Merze skills catalog."
+  canonicalPath="/404/"
+>
+  <header>
+    <h1>Page not found</h1>
+    <p class="lede">
+      That URL is not in the catalog.
+      <a href="/">Back to all skills</a>.
+    </p>
+  </header>
+  <PagefindSearch />
+</BaseLayout>

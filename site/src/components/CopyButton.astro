@@ -1,0 +1,60 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+  text: string;
+  label?: string;
+}
+
+const { text, label = "Copy install command" } = Astro.props;
+---
+
+<button
+  type="button"
+  class="btn btn--primary btn--sm copy-btn"
+  data-copy={text}
+  aria-label={label}
+>
+  <span class="copy-btn__idle">
+    <Icon name="copy" size={16} />
+    {label}
+  </span>
+  <span class="copy-btn__done" hidden>
+    <Icon name="check" size={16} />
+    Copied
+  </span>
+</button>
+
+<script>
+  function bindCopyButtons() {
+    document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "1";
+      btn.addEventListener("click", async () => {
+        const value = btn.dataset.copy ?? "";
+        try {
+          await navigator.clipboard.writeText(value);
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = value;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+        }
+        const idle = btn.querySelector<HTMLElement>(".copy-btn__idle");
+        const done = btn.querySelector<HTMLElement>(".copy-btn__done");
+        if (idle && done) {
+          idle.hidden = true;
+          done.hidden = false;
+          window.setTimeout(() => {
+            idle.hidden = false;
+            done.hidden = true;
+          }, 1600);
+        }
+      });
+    });
+  }
+  bindCopyButtons();
+  document.addEventListener("astro:page-load", bindCopyButtons);
+</script>

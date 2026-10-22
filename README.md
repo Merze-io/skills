@@ -1,6 +1,6 @@
 # Merze skills
 
-Public Agent Skills for [Merze](https://merze.io).
+Public Agent Skills for [Merze](https://merze.ai).
 
 ## Skills
 
