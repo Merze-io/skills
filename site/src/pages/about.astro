@@ -4,24 +4,29 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 
 <BaseLayout
   title="About"
-  description="What Agent Skills are and how to install them from skills.merze.ai."
+  description="What Agent Skills are and how to install them from skills.merze.ai into ChatGPT, Claude, Cursor, or Claude Code."
   canonicalPath="/about/"
 >
   <article class="prose about-page">
     <h1>About Agent Skills</h1>
     <p>
-      Agent Skills are folders of instructions that coding agents can load on
-      demand. Each skill is a directory with a <code>SKILL.md</code> file
-      (YAML frontmatter + markdown body) and optional supporting files.
+      Agent Skills are folders of instructions that agents can load on demand.
+      Each skill is a directory with a <code>SKILL.md</code> file (YAML
+      frontmatter + markdown body) and optional supporting files. Use them in
+      public ChatGPT, Claude, Cursor, Claude Code, and other skill-capable
+      agents.
     </p>
 
     <h2>Install a skill</h2>
     <p>
-      Open any skill in the catalog. Download every listed file (or copy the
-      install command) and place them under
-      <code>&lt;slug&gt;/</code> in your agent’s skills directory, then reload
-      the agent so it discovers the skill.
+      Open any skill in the catalog. Copy the install command, or download every
+      listed file and place them under <code>&lt;slug&gt;/</code> in your
+      agent’s skills directory, then reload so the agent discovers the skill.
     </p>
+    <p>
+      Typical install from this catalog:
+    </p>
+    <pre><code>npx skills add https://skills.merze.ai --skill &lt;name&gt;</code></pre>
 
     <h2>Skill layout</h2>
     <ul>
