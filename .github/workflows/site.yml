@@ -285,10 +285,18 @@ jobs:
           assert len(names) == 7, names
           assert "--create-dirs" in page
           assert "curl --create-dirs -fsSLo '" in page
-          pre = re.search(r'install-snippet.*?<pre[^>]*><code>(.*?)</code></pre>', page, re.S)
-          assert pre, "missing install snippet"
-          cmd = htmlmod.unescape(pre.group(1))
-          assert all(f"'{n}'" in cmd or f"'zz-nested-install/{n}'" in cmd for n in names)
+          # Chat-agent paste is the first install-snippet; pick the curl one.
+          snippets = [
+              htmlmod.unescape(s)
+              for s in re.findall(
+                  r'install-snippet[\s\S]*?<pre[^>]*><code>(.*?)</code></pre>',
+                  page,
+                  re.S,
+              )
+          ]
+          cmd = next((s for s in snippets if "curl --create-dirs" in s), None)
+          assert cmd, "missing curl install snippet"
+          assert all(f"'{n}'" in cmd or f"'zz-nested-install/{n}'" in cmd for n in names), names
 
           handler = partial(http.server.SimpleHTTPRequestHandler, directory="dist")
           server = http.server.ThreadingHTTPServer(("127.0.0.1", 8765), handler)
