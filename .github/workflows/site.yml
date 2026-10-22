@@ -529,7 +529,29 @@ jobs:
       - name: Docker build and smoke
         run: |
           set -euo pipefail
-          # .dockerignore excludes .git — pass a real UTC date so updated_at is not 1980
+          # Coolify-like: .dockerignore excludes .git and no date build-args.
+          # Must succeed with the 1980-01-01 updated_at fallback (plan §2).
+          docker build -f site/Dockerfile -t skills-merze-ai:ci-nogit .
+          cid_nogit=$(docker run -d -p 18081:8080 skills-merze-ai:ci-nogit)
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:18081/healthz | grep -q ok; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://127.0.0.1:18081/healthz | grep -q ok
+          curl -fsS http://127.0.0.1:18081/skills.json -o /tmp/skills-nogit.json
+          python3 - <<'PY'
+          import json
+          d = json.load(open("/tmp/skills-nogit.json"))
+          assert d["skills"], "no skills"
+          for s in d["skills"]:
+              assert s["updated_at"].endswith("Z"), s["updated_at"]
+              # Without git / SOURCE_DATE*, fallback is the plan §2 epoch
+              assert s["updated_at"] == "1980-01-01T00:00:00.000Z", s["updated_at"]
+          print("no-git Docker build OK; updated_at fallback", d["skills"][0]["updated_at"])
+          PY
+          docker rm -f "$cid_nogit" >/dev/null
+
+          # Smoke with explicit dates (prod can set SOURCE_DATE_EPOCH as a Coolify build arg)
           SOURCE_DATE="$(git log -1 --format=%cI)"
           SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
           docker build -f site/Dockerfile \
@@ -675,11 +697,47 @@ jobs:
           print("updated_at OK:", d["skills"][0]["updated_at"])
           PY
 
-          # skills check: wellKnownDigest matches live zip (plan §3.1)
+          # skills check: lock wellKnownDigest must equal live zip; check finds no drift
+          lock=$(find "$TMPPROJ" "$TMPHOME" -name 'skills-lock.json' | head -1)
+          test -n "$lock"
+          echo "$lock" > /tmp/skills-lock-path.txt
+          sha256sum /tmp/skill.zip | awk '{print $1}' > /tmp/skill-zip.sha256
+          python3 - <<'PY'
+          import json, pathlib, re
+          lock_path = pathlib.Path(pathlib.Path("/tmp/skills-lock-path.txt").read_text().strip())
+          zip_sha = pathlib.Path("/tmp/skill-zip.sha256").read_text().strip()
+          lock = json.loads(lock_path.read_text())
+          digests = []
+          def walk(obj):
+              if isinstance(obj, dict):
+                  if "wellKnownDigest" in obj:
+                      digests.append(str(obj["wellKnownDigest"]))
+                  for v in obj.values():
+                      walk(v)
+              elif isinstance(obj, list):
+                  for v in obj:
+                      walk(v)
+          walk(lock)
+          assert digests, f"no wellKnownDigest in {lock_path}"
+          norm = [d.removeprefix("sha256:") for d in digests]
+          assert zip_sha in norm, f"zip {zip_sha} not in lock digests {norm}"
+          print("lock wellKnownDigest matches zip:", zip_sha)
+          PY
           (
             cd "$TMPPROJ"
             HOME="$TMPHOME" npx -y skills@1.7.4 check 2>&1 | tee /tmp/skills-check.out
           )
-          echo "skills check OK"
+          # Exit 0 already required by set -e; also require "up to date" signal
+          if ! grep -Eiq 'up to date|no updates|already up.to.date|Checking for skill updates' /tmp/skills-check.out; then
+            echo "skills check output missing expected status:"
+            cat /tmp/skills-check.out
+            exit 1
+          fi
+          if grep -Eiq 'update available|outdated|needs update|digest mismatch|will be updated' /tmp/skills-check.out; then
+            echo "skills check reported drift unexpectedly:"
+            cat /tmp/skills-check.out
+            exit 1
+          fi
+          echo "skills check OK (digest match + no drift)"
 
           echo "Docker smoke OK"

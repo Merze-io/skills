@@ -153,6 +153,8 @@ function toUtcIso(value: string | number | Date): string | null {
   return d.toISOString();
 }
 
+const FALLBACK_UPDATED_AT = "1980-01-01T00:00:00.000Z";
+
 export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
   try {
     const out = execFileSync(
@@ -163,7 +165,7 @@ export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
     const iso = out ? toUtcIso(out) : null;
     if (iso) return iso;
   } catch {
-    // no git / shallow / missing (.dockerignore strips .git in prod images)
+    // no git / shallow / untracked skill folder
   }
   const epoch = process.env.SOURCE_DATE_EPOCH;
   if (epoch && /^\d+$/.test(epoch)) {
@@ -176,9 +178,44 @@ export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
     const iso = toUtcIso(fromEnv.trim());
     if (iso) return iso;
   }
-  throw new Error(
-    `No updated_at for ${skillDir}: need git history, SOURCE_DATE_EPOCH, SOURCE_DATE, or SOURCE_COMMIT_DATE (Docker must pass one; Coolify usually sets SOURCE_DATE / SOURCE_COMMIT_DATE)`,
+  // Coolify may pass SOURCE_COMMIT (git sha) at build time; derive a stable
+  // date from `git show` when .git exists. Without .git this is a no-op.
+  const commit = (process.env.SOURCE_COMMIT || "").trim();
+  if (commit && /^[0-9a-f]{7,40}$/i.test(commit)) {
+    try {
+      const out = execFileSync(
+        "git",
+        ["show", "-s", "--format=%cI", commit],
+        { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
+      ).trim();
+      const iso = out ? toUtcIso(out) : null;
+      if (iso) return iso;
+    } catch {
+      // unknown commit / no git
+    }
+  }
+  // HEAD date when git works but the skill path has no history (untracked)
+  try {
+    const out = execFileSync("git", ["log", "-1", "--format=%cI"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    const iso = out ? toUtcIso(out) : null;
+    if (iso) {
+      console.warn(
+        `[distribution] no git date for ${path.basename(skillDir)}; using HEAD ${iso}`,
+      );
+      return iso;
+    }
+  } catch {
+    // no git
+  }
+  // Plan §2: Docker/.dockerignore builds with no date env → fixed epoch
+  console.warn(
+    `[distribution] no git date for ${path.basename(skillDir)}; using ${FALLBACK_UPDATED_AT}`,
   );
+  return FALLBACK_UPDATED_AT;
 }
 
 /** Prefer the shared helper; keep a thin alias for callers. */
@@ -324,8 +361,8 @@ export function buildSkillsIndexJson(
     site: {
       name: "Merze Skills",
       url: SITE_ORIGIN,
-      // /install lands in PR-3; /about is the live install/contribute page today
-      install_docs: `${SITE_ORIGIN}/about`,
+      // /install lands in PR-3; /about/ is the live install/contribute page today
+      install_docs: `${SITE_ORIGIN}/about/`,
       discovery: absolute(discoveryIndexPath()),
       all_zip: absolute(allZipUrl()),
       all_tar_gz: absolute(allTarUrl()),
@@ -401,7 +438,7 @@ export function buildLlmsTxt(bundles: SkillBundle[]): string {
     "",
     "## Optional",
     "",
-    `- [About](${SITE_ORIGIN}/about)`,
+    `- [About](${SITE_ORIGIN}/about/)`,
     "",
   );
   return lines.join("\n");

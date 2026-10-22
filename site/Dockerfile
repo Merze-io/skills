@@ -3,9 +3,10 @@ FROM node:22-alpine AS build
 WORKDIR /repo
 COPY . .
 WORKDIR /repo/site
-# Coolify typically passes SOURCE_DATE / SOURCE_COMMIT_DATE; SOURCE_DATE_EPOCH
-# is the portable fallback when .git is absent (.dockerignore). Required for
-# skills.json updated_at — build fails if none are set and git is unavailable.
+# Coolify build-time vars are COOLIFY_* and (optionally) SOURCE_COMMIT — not
+# SOURCE_DATE / SOURCE_COMMIT_DATE. .dockerignore excludes .git, so skill
+# updated_at falls back to SOURCE_DATE_EPOCH / SOURCE_DATE if you set them as
+# Coolify build args, else HEAD (when git exists), else 1980-01-01T00:00:00.000Z.
 ARG SOURCE_COMMIT=
 ARG SOURCE_DATE=
 ARG SOURCE_COMMIT_DATE=
