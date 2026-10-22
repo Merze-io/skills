@@ -70,12 +70,15 @@ function loadSkillDatesManifest(): SkillDatesManifest | null {
   return cachedSkillDates;
 }
 
-/** Per-skill updated_at from committed skill-dates.json (Docker/no-git safe). */
+/**
+ * Per-skill updated_at from committed skill-dates.json only.
+ * Does not fall back to Coolify SOURCE_DATE (that would blanket every skill).
+ */
 export function getSkillUpdatedAt(slug: string): string | null {
   const raw = loadSkillDatesManifest()?.skills?.[slug];
-  if (!raw) return getSourceUpdatedAt();
+  if (!raw) return null;
   const d = new Date(raw);
-  if (Number.isNaN(d.getTime())) return getSourceUpdatedAt();
+  if (Number.isNaN(d.getTime())) return null;
   return d.toISOString();
 }
 

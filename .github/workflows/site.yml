@@ -607,9 +607,14 @@ jobs:
       - name: Docker build and smoke
         run: |
           set -euo pipefail
-          # Coolify-like: .dockerignore excludes .git and no date build-args.
-          # updated_at must come from committed skill-dates.json (not 1980).
-          docker build -f site/Dockerfile -t skills-merze-ai:ci-nogit .
+          # Coolify-like: .dockerignore excludes .git; stopgap SOURCE_DATE /
+          # SOURCE_DATE_EPOCH must NOT blanket updated_at (manifest wins).
+          COOLIFY_SOURCE_DATE="2026-10-22T08:21:28Z"
+          COOLIFY_SOURCE_DATE_EPOCH="1792657288"
+          docker build -f site/Dockerfile \
+            --build-arg "SOURCE_DATE=${COOLIFY_SOURCE_DATE}" \
+            --build-arg "SOURCE_DATE_EPOCH=${COOLIFY_SOURCE_DATE_EPOCH}" \
+            -t skills-merze-ai:ci-nogit .
           cid_nogit=$(docker run -d -p 18081:8080 skills-merze-ai:ci-nogit)
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:18081/healthz | grep -q ok; then break; fi
@@ -620,20 +625,21 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
+          from datetime import datetime, timezone
           manifest = json.loads(Path("site/data/skill-dates.json").read_text())
           d = json.load(open("/tmp/skills-nogit.json"))
+          coolify_blanket = "2026-10-22T08:21:28.000Z"
           assert d["skills"], "no skills"
+          def norm(x):
+              return datetime.fromisoformat(x.replace("Z", "+00:00")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
           for s in d["skills"]:
               u = s["updated_at"]
               assert u.endswith("Z"), u
               assert not u.startswith("1980-"), u
+              assert norm(u) != coolify_blanket, (s["name"], u, "must not use Coolify SOURCE_DATE blanket")
               expected = manifest["skills"][s["name"]]
-              # Normalize both to ms ISO
-              from datetime import datetime, timezone
-              def norm(x):
-                  return datetime.fromisoformat(x.replace("Z", "+00:00")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
               assert norm(u) == norm(expected), (s["name"], u, expected)
-          print("no-git Docker build OK; updated_at from skill-dates.json:", d["skills"][0]["updated_at"])
+          print("no-git Docker OK; updated_at from skill-dates.json (not Coolify SOURCE_DATE):", d["skills"][0]["updated_at"])
           PY
           # Quick /skill/ + /files/ 301 proof on the no-git image too
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/skill/us-llc-state-cost)

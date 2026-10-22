@@ -5,10 +5,10 @@ FROM node:22-alpine AS build
 WORKDIR /repo
 COPY . .
 WORKDIR /repo/site
-# Per-skill updated_at comes from committed site/data/skill-dates.json (CI
-# fails if stale vs git). Optional overrides below are unused in Coolify today
-# (.dockerignore excludes .git; Coolify passes no date build-args):
-#   SOURCE_DATE_EPOCH / SOURCE_DATE / SOURCE_COMMIT_DATE
+# Per-skill updated_at: committed site/data/skill-dates.json only (CI fails if
+# stale vs git). Coolify may set SOURCE_DATE / SOURCE_DATE_EPOCH as a stopgap;
+# those must NOT blanket skills.json updated_at — remove SOURCE_DATE after
+# this PR merges. SOURCE_DATE_EPOCH is used only for archive entry mtimes.
 ARG SOURCE_COMMIT=
 ARG SOURCE_DATE=
 ARG SOURCE_COMMIT_DATE=

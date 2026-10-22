@@ -175,10 +175,12 @@ function loadSkillDatesManifest(repoRoot: string): SkillDatesManifest | null {
 
 /**
  * Deterministic per-skill updated_at (UTC ISO).
- * Order: committed site/data/skill-dates.json → git log on folder →
- * SOURCE_DATE_EPOCH / SOURCE_DATE / SOURCE_COMMIT_DATE → 1980 fallback.
- * Coolify builds exclude .git and pass no date args; the committed manifest
- * is the production source of truth (no Coolify config required).
+ * site/data/skill-dates.json is the single source of truth and always wins
+ * over Coolify SOURCE_DATE / SOURCE_COMMIT_DATE / SOURCE_DATE_EPOCH (those
+ * must not blanket every skill). Git log is a local/CI fallback only when the
+ * manifest entry is missing; otherwise 1980.
+ *
+ * SOURCE_DATE_EPOCH is reserved for archive mtimes (see zip.ts), not display.
  */
 export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
   const name = path.basename(skillDir);
@@ -199,19 +201,8 @@ export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
   } catch {
     // no git / shallow / untracked skill folder
   }
-  const epoch = process.env.SOURCE_DATE_EPOCH;
-  if (epoch && /^\d+$/.test(epoch)) {
-    const iso = toUtcIso(Number(epoch) * 1000);
-    if (iso) return iso;
-  }
-  const fromEnv =
-    process.env.SOURCE_DATE || process.env.SOURCE_COMMIT_DATE || "";
-  if (fromEnv.trim()) {
-    const iso = toUtcIso(fromEnv.trim());
-    if (iso) return iso;
-  }
   console.warn(
-    `[distribution] no date for ${name}; using ${FALLBACK_UPDATED_AT}`,
+    `[distribution] no manifest/git date for ${name}; using ${FALLBACK_UPDATED_AT}`,
   );
   return FALLBACK_UPDATED_AT;
 }
