@@ -151,11 +151,11 @@ export function skillFileUrl(slug: string, path = "SKILL.md"): string {
 }
 
 /**
- * Generic install hint — no remote registry URL. Prefer downloading SKILL.md
- * from this domain and placing it in the agent's skills folder.
+ * Generic install hint — download every published file for the skill from
+ * this domain into the agent's skills folder.
  */
 export function installHint(slug: string): string {
-  return `Download SKILL.md from ${skillFileUrl(slug)} and add it to your agent's skills directory as ${slug}/SKILL.md.`;
+  return `Download every file under ${skillFileUrl(slug, "").replace(/\/$/, "")}/ into your agent's skills directory as ${slug}/.`;
 }
 
 /** Optional last-updated from Coolify/build env; omit when absent. */

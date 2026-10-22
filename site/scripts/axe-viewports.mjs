@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 /**
- * Run axe-core against key pages at real Chromium viewports.
- * @axe-core/cli's --chrome-options="window-size=360,800" is unreliable
- * (comma splitting + Chrome minimum width ~500), so we drive Puppeteer
- * with setViewport instead.
+ * Run axe-core against key pages at real Chromium viewports via Puppeteer
+ * setViewport (not CLI window-size). Asserts innerWidth and no horizontal
+ * overflow; can fail both checks (see --self-test).
  */
 import { createServer } from "node:http";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync, statSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
@@ -15,12 +14,21 @@ import { AxePuppeteer } from "@axe-core/puppeteer";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(__dirname, "..", "dist");
 const PORT = Number(process.env.AXE_PORT || 4173);
+const SELF_TEST = process.argv.includes("--self-test");
+
 const VIEWPORTS = [
   { width: 320, height: 720, name: "320" },
   { width: 360, height: 800, name: "360" },
   { width: 1280, height: 900, name: "1280" },
 ];
-const PAGES = ["/", "/us-llc-state-cost/", "/us-llc-state-cost/states/", "/about/", "/404.html"];
+const PAGES = [
+  "/",
+  "/us-llc-state-cost/",
+  "/us-llc-state-cost/states/",
+  "/about/",
+  "/404.html",
+  "/no-such-page/",
+];
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -71,6 +79,48 @@ function startServer() {
   });
 }
 
+async function checkViewportOverflow(page, vp, route) {
+  const [iw, sw] = await page.evaluate(() => [
+    window.innerWidth,
+    document.documentElement.scrollWidth,
+  ]);
+  if (iw !== vp.width || sw > iw + 1) {
+    console.error(
+      `Viewport/overflow for ${route}: innerWidth ${iw}, scrollWidth ${sw}, expected ${vp.width}`,
+    );
+    return false;
+  }
+  return true;
+}
+
+async function runSelfTest(browser) {
+  const fixtureDir = path.join(dist, "_axe-overflow-fixture");
+  mkdirSync(fixtureDir, { recursive: true });
+  const fixtureFile = path.join(fixtureDir, "index.html");
+  writeFileSync(
+    fixtureFile,
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>overflow</title>
+<style>body{margin:0}.wide{width:2000px;height:40px;background:#112e51}</style>
+</head><body><div class="wide">wide</div></body></html>`,
+  );
+
+  const page = await browser.newPage();
+  await page.setViewport({ width: 320, height: 720, deviceScaleFactor: 1 });
+  await page.goto(`http://127.0.0.1:${PORT}/_axe-overflow-fixture/`, {
+    waitUntil: "networkidle0",
+  });
+  const ok = await checkViewportOverflow(page, { width: 320 }, "/_axe-overflow-fixture/");
+  await page.close();
+  rmSync(fixtureDir, { recursive: true, force: true });
+
+  if (ok) {
+    console.error("Self-test expected overflow failure but check passed");
+    return false;
+  }
+  console.log("Self-test OK: overflow check failed as expected");
+  return true;
+}
+
 async function main() {
   if (!existsSync(path.join(dist, "index.html"))) {
     console.error("dist/ missing — run npm run build first");
@@ -83,6 +133,13 @@ async function main() {
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"],
   });
+
+  if (SELF_TEST) {
+    const passed = await runSelfTest(browser);
+    await browser.close();
+    server.close();
+    process.exit(passed ? 0 : 1);
+  }
 
   let failed = false;
   const page = await browser.newPage();
@@ -98,15 +155,29 @@ async function main() {
     for (const route of PAGES) {
       const url = `http://127.0.0.1:${PORT}${route}`;
       await page.goto(url, { waitUntil: "networkidle0", timeout: 60000 });
-      // Confirm viewport stuck (Chrome won't silently upscale via setViewport)
-      const metrics = await page.viewport();
-      if (!metrics || metrics.width !== vp.width) {
-        console.error(
-          `Viewport mismatch for ${route}: expected ${vp.width}, got ${metrics?.width}`,
-        );
+
+      if (!(await checkViewportOverflow(page, vp, route))) {
         failed = true;
         continue;
       }
+
+      // Open Pagefind and exercise empty results on the catalog
+      if (route === "/" && vp.width >= 360) {
+        try {
+          const trigger = await page.$("[data-pagefind-trigger]");
+          if (trigger) {
+            await trigger.click();
+            await page.waitForSelector(".pagefind-ui__search-input", {
+              timeout: 5000,
+            });
+            await page.type(".pagefind-ui__search-input", "zzqqxx");
+            await new Promise((r) => setTimeout(r, 400));
+          }
+        } catch (err) {
+          console.warn(`Pagefind probe skipped: ${err.message}`);
+        }
+      }
+
       const results = await new AxePuppeteer(page).analyze();
       const violations = results.violations ?? [];
       if (violations.length === 0) {

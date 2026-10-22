@@ -1,53 +1,40 @@
 #!/usr/bin/env node
 /**
- * Copy each publishable skill folder into dist/files/<slug>/ so the catalog
- * can offer same-origin downloads (SKILL.md and supporting files).
+ * Copy allowlisted skill files into dist/files/<slug>/ for same-origin download.
+ * Policy: site/src/lib/skill-sources.mjs (shared with MER-1098).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  listPublishableSkillDirs,
+  listSafeSkillFiles,
+} from "../src/lib/skill-sources.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const siteRoot = path.resolve(__dirname, "..");
 const repoRoot = path.resolve(siteRoot, "..");
 const distFiles = path.join(siteRoot, "dist", "files");
 
-const SKIP = new Set(["site", "node_modules", ".git", ".agents", "dist"]);
-
-function isPublishable(name) {
-  return (
-    Boolean(name) &&
-    !name.startsWith("_") &&
-    !name.startsWith(".") &&
-    !SKIP.has(name)
-  );
-}
-
-function copyDir(src, dest) {
-  fs.mkdirSync(dest, { recursive: true });
-  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
-    if (entry.name.startsWith(".")) continue;
-    const from = path.join(src, entry.name);
-    const to = path.join(dest, entry.name);
-    if (entry.isDirectory()) {
-      copyDir(from, to);
-    } else {
-      fs.copyFileSync(from, to);
-    }
-  }
-}
-
 fs.rmSync(distFiles, { recursive: true, force: true });
 fs.mkdirSync(distFiles, { recursive: true });
 
-let count = 0;
-for (const entry of fs.readdirSync(repoRoot, { withFileTypes: true })) {
-  if (!entry.isDirectory() || !isPublishable(entry.name)) continue;
-  const skillDir = path.join(repoRoot, entry.name);
-  if (!fs.existsSync(path.join(skillDir, "SKILL.md"))) continue;
-  copyDir(skillDir, path.join(distFiles, entry.name));
-  count += 1;
-  console.log(`copied files/${entry.name}/`);
+const slugs = listPublishableSkillDirs(repoRoot);
+let fileCount = 0;
+
+for (const slug of slugs) {
+  const skillDir = path.join(repoRoot, slug);
+  const files = listSafeSkillFiles(skillDir);
+  const destRoot = path.join(distFiles, slug);
+  for (const file of files) {
+    const dest = path.join(destRoot, file.relativePath);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(file.absolutePath, dest);
+    fileCount += 1;
+  }
+  console.log(`copied files/${slug}/ (${files.length} file(s))`);
 }
 
-console.log(`Copied ${count} skill folder(s) into dist/files/`);
+console.log(
+  `Copied ${fileCount} file(s) across ${slugs.length} skill folder(s) into dist/files/`,
+);

@@ -1,4 +1,4 @@
-import { HeadingSlugger } from "./slugify";
+import GithubSlugger from "github-slugger";
 
 export type TocItem = {
   depth: number;
@@ -9,9 +9,10 @@ export type TocItem = {
 /**
  * Mirror rehypeDemoteHeadings: drop leading H1, then assign depths that
  * never skip a level under the page h1.
+ * Uses github-slugger so TOC hrefs match rehype-slug heading ids.
  */
 export function extractToc(markdown: string): TocItem[] {
-  const slugger = new HeadingSlugger();
+  const slugger = new GithubSlugger();
   const items: TocItem[] = [];
   const lines = markdown.split("\n");
   let inFence = false;

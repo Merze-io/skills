@@ -7,10 +7,10 @@ import {
   extractWhenToUseFromBody,
   getAllSkills,
   getSupportingFiles,
-  installHint,
   parseDescription,
   skillFileUrl,
   skillSlug,
+  supportingFileSlug,
   formatUpdated,
   getSourceUpdatedAt,
 } from "../../lib/skills";
@@ -34,11 +34,22 @@ const whenFromBody =
 const toc = extractToc(body);
 const supporting = await getSupportingFiles(slug);
 const downloadUrl = skillFileUrl(slug);
-const hint = installHint(slug);
 const updated = formatUpdated(getSourceUpdatedAt());
 const version = skill.data.metadata?.version ?? null;
 const tags = skill.data.metadata?.tags ?? [];
 const category = skill.data.metadata?.category ?? null;
+
+const fileNames = [
+  "SKILL.md",
+  ...supporting.map((f) => `${supportingFileSlug(f)}.md`),
+];
+const installSnippet = [
+  `mkdir -p ${slug}`,
+  ...fileNames.map(
+    (f) =>
+      `curl -fsSLo ${slug}/${f} https://skills.merze.ai${skillFileUrl(slug, f)}`,
+  ),
+].join(" && \\\n");
 ---
 
 <BaseLayout
@@ -112,17 +123,43 @@ const category = skill.data.metadata?.category ?? null;
     <section class="panel panel--install" aria-labelledby="install-heading">
       <h2 class="panel__title" id="install-heading">Install</h2>
       <p class="panel__copy">
-        Download <code>SKILL.md</code> from this site and place it in your
-        agent’s skills folder as <code>{slug}/SKILL.md</code>.
+        Download every file in this skill and place them under
+        <code>{slug}/</code> in your agent’s skills directory.
       </p>
-      <div class="install-actions">
-        <a class="btn btn--primary btn--sm" href={downloadUrl} download>
-          <Icon name="download" size={16} />
-          Download SKILL.md
-        </a>
-        <CopyButton url={downloadUrl} label="Copy SKILL.md" />
+      <ul class="file-list file-list--install">
+        {
+          fileNames.map((name) => (
+            <li>
+              <a href={skillFileUrl(slug, name)} download>
+                <Icon name="file" size={14} />
+                {name}
+              </a>
+              <span class="file-list__actions">
+                <a
+                  class="btn btn--ghost btn--sm"
+                  href={skillFileUrl(slug, name)}
+                  download
+                >
+                  <Icon name="download" size={14} />
+                  Download
+                </a>
+                <CopyButton
+                  url={skillFileUrl(slug, name)}
+                  label={`Copy ${name}`}
+                />
+              </span>
+            </li>
+          ))
+        }
+      </ul>
+      <div class="install-snippet">
+        <pre tabindex="0"><code>{installSnippet}</code></pre>
+        <CopyButton text={installSnippet} label="Copy install command" />
       </div>
-      <p class="install-hint">{hint}</p>
+      <p class="install-hint">
+        Or download <a href={downloadUrl} download>SKILL.md</a> alone if you
+        already have the supporting files.
+      </p>
     </section>
 
     {
@@ -133,11 +170,7 @@ const category = skill.data.metadata?.category ?? null;
           </h2>
           <ul class="file-list">
             {supporting.map((file) => {
-              const fileSlug = file.id
-                .replace(/\\/g, "/")
-                .split("/")
-                .pop()!
-                .replace(/\.md$/i, "");
+              const fileSlug = supportingFileSlug(file);
               return (
                 <li>
                   <a href={`/${slug}/${fileSlug}/`}>
@@ -187,7 +220,6 @@ const category = skill.data.metadata?.category ?? null;
 </BaseLayout>
 
 <script>
-  // Wrap tables for horizontal scroll on small screens
   document.querySelectorAll(".prose table").forEach((table) => {
     if (table.parentElement?.classList.contains("table-wrap")) return;
     const wrap = document.createElement("div");

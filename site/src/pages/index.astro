@@ -14,17 +14,12 @@ const skillCount = skills.length;
   canonicalPath="/"
 >
   <section class="hero" aria-labelledby="hero-heading">
-    <div class="hero__glow" aria-hidden="true"></div>
     <h1 id="hero-heading" class="hero__title">Merze Skills</h1>
     <p class="hero__lede">
-      Install-ready agent skills for formation, compliance, and ops. Search the
-      catalog, then download <code>SKILL.md</code> from this site.
+      Install-ready agent skills for formation, compliance, and ops. Search,
+      then download every file in a skill from this site.
     </p>
-    <div class="hero__actions">
-      <a class="btn btn--primary" href="#catalog">Browse catalog</a>
-      <a class="btn btn--secondary" href="/about/">How install works</a>
-    </div>
-    <p class="hero__meta" aria-live="polite">
+    <p class="hero__meta">
       <span class="hero__count">{skillCount}</span>
       {skillCount === 1 ? " skill" : " skills"} available
     </p>
@@ -34,7 +29,6 @@ const skillCount = skills.length;
     <PagefindSearch />
   </div>
 
-  <!-- Index itself is not in the Pagefind body (avoid catalog self-hits). -->
   <div class="catalog">
     <h2 class="sr-only">All skills</h2>
     <SkillFilters skills={skills} />
