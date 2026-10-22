@@ -6,8 +6,10 @@ import Icon from "../../components/Icon.astro";
 import {
   extractWhenToUseFromBody,
   getAllSkills,
+  getPublishedSkillFiles,
   getSupportingFiles,
   parseDescription,
+  shellSingleQuote,
   skillFileUrl,
   skillSlug,
   supportingFileSlug,
@@ -33,22 +35,19 @@ const whenFromBody =
   parts.useWhen.length === 0 ? extractWhenToUseFromBody(body) : null;
 const toc = extractToc(body);
 const supporting = await getSupportingFiles(slug);
-const downloadUrl = skillFileUrl(slug);
+const publishedFiles = getPublishedSkillFiles(slug);
 const updated = formatUpdated(getSourceUpdatedAt());
 const version = skill.data.metadata?.version ?? null;
 const tags = skill.data.metadata?.tags ?? [];
 const category = skill.data.metadata?.category ?? null;
 
-const fileNames = [
-  "SKILL.md",
-  ...supporting.map((f) => `${supportingFileSlug(f)}.md`),
-];
 const installSnippet = [
-  `mkdir -p ${slug}`,
-  ...fileNames.map(
-    (f) =>
-      `curl -fsSLo ${slug}/${f} https://skills.merze.ai${skillFileUrl(slug, f)}`,
-  ),
+  `mkdir -p ${shellSingleQuote(slug)}`,
+  ...publishedFiles.map((f) => {
+    const localPath = `${slug}/${f.relativePath}`;
+    const url = `https://skills.merze.ai${skillFileUrl(slug, f.relativePath)}`;
+    return `curl --create-dirs -fsSLo ${shellSingleQuote(localPath)} ${shellSingleQuote(url)}`;
+  }),
 ].join(" && \\\n");
 ---
 
@@ -128,24 +127,16 @@ const installSnippet = [
       </p>
       <ul class="file-list file-list--install">
         {
-          fileNames.map((name) => (
+          publishedFiles.map((file) => (
             <li>
-              <a href={skillFileUrl(slug, name)} download>
-                <Icon name="file" size={14} />
-                {name}
+              <a href={skillFileUrl(slug, file.relativePath)} download>
+                <Icon name="download" size={14} />
+                {file.relativePath}
               </a>
               <span class="file-list__actions">
-                <a
-                  class="btn btn--ghost btn--sm"
-                  href={skillFileUrl(slug, name)}
-                  download
-                >
-                  <Icon name="download" size={14} />
-                  Download
-                </a>
                 <CopyButton
-                  url={skillFileUrl(slug, name)}
-                  label={`Copy ${name}`}
+                  url={skillFileUrl(slug, file.relativePath)}
+                  label={`Copy ${file.relativePath}`}
                 />
               </span>
             </li>
@@ -156,10 +147,6 @@ const installSnippet = [
         <pre tabindex="0"><code>{installSnippet}</code></pre>
         <CopyButton text={installSnippet} label="Copy install command" />
       </div>
-      <p class="install-hint">
-        Or download <a href={downloadUrl} download>SKILL.md</a> alone if you
-        already have the supporting files.
-      </p>
     </section>
 
     {

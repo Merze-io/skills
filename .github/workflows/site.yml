@@ -53,21 +53,33 @@ jobs:
           # Single scanner (also runs at end of npm run build). Policy in DESIGN.md.
           node scripts/scrub-github.mjs
 
-      - name: Skill file allowlist rejects svg and skips symlinks
+      - name: Skill allowlist, path rule, nested install, github gate self-test
         working-directory: site
         run: |
           set -euo pipefail
-          SKILL="../_ci-files-security"
-          mkdir -p "$SKILL"
-          cat > "$SKILL/SKILL.md" <<'EOF'
-          ---
-          name: _ci-files-security
-          description: CI fixture for allowlist and symlink policy.
-          ---
-          # fixture
-          EOF
-          # Underscore folders are ignored by the publisher — use a real slug:
-          rm -rf "$SKILL"
+
+          expect_build_fail() {
+            local label="$1"
+            local needle="$2"
+            set +e
+            NO_COLOR=1 FORCE_COLOR=0 npm run build > /tmp/files-sec-build.log 2>&1
+            local code=$?
+            set -e
+            sed -i 's/\x1b\[[0-9;]*[mK]//g' /tmp/files-sec-build.log
+            if [[ $code -eq 0 ]]; then
+              echo "Expected build to fail: $label"
+              cat /tmp/files-sec-build.log
+              exit 1
+            fi
+            if ! grep -F "$needle" /tmp/files-sec-build.log; then
+              echo "Expected error containing: $needle"
+              cat /tmp/files-sec-build.log
+              exit 1
+            fi
+            echo "OK fail: $label"
+          }
+
+          # Disallowed extension
           BAD="../zz-files-security"
           mkdir -p "$BAD"
           cat > "$BAD/SKILL.md" <<'EOF'
@@ -78,45 +90,175 @@ jobs:
           # fixture
           EOF
           printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n' > "$BAD/evil.svg"
-          # Symlink that would leak a secret if followed
-          printf 'SECRET=should-not-publish\n' > ../site/secret.env.ci
-          ln -s ../site/secret.env.ci "$BAD/notes.txt"
-          set +e
-          NO_COLOR=1 FORCE_COLOR=0 npm run build > /tmp/files-sec-build.log 2>&1
-          code=$?
-          set -e
-          rm -f ../site/secret.env.ci
+          expect_build_fail "disallowed svg" "Disallowed file"
           rm -rf "$BAD"
-          sed -i 's/\x1b\[[0-9;]*[mK]//g' /tmp/files-sec-build.log
-          if [[ $code -eq 0 ]]; then
-            echo "Expected build to fail on disallowed evil.svg"
-            cat /tmp/files-sec-build.log
-            exit 1
-          fi
-          if ! grep -F 'Disallowed file' /tmp/files-sec-build.log; then
-            echo "Expected Disallowed file error"
-            cat /tmp/files-sec-build.log
-            exit 1
-          fi
-          echo "Disallowed svg correctly failed the build"
-          # Symlink-only fixture should succeed (symlink skipped, no svg)
-          GOOD="../zz-files-symlink-ok"
-          mkdir -p "$GOOD"
-          cat > "$GOOD/SKILL.md" <<'EOF'
+
+          # Symlinks fail the build
+          SYML="../zz-files-symlink-fail"
+          mkdir -p "$SYML"
+          cat > "$SYML/SKILL.md" <<'EOF'
           ---
-          name: zz-files-symlink-ok
-          description: CI fixture proving symlinks are skipped.
+          name: zz-files-symlink-fail
+          description: CI fixture proving symlinks fail the build.
           ---
           # fixture
           EOF
           printf 'SECRET=nope\n' > ../site/secret.env.ci
-          ln -s ../site/secret.env.ci "$GOOD/notes.txt"
+          ln -s ../site/secret.env.ci "$SYML/notes.txt"
+          expect_build_fail "symlink" "symlink not allowed"
+          rm -rf "$SYML" ../site/secret.env.ci
+
+          # Hostile names fail the build (shell metacharacters / URL punctuation)
+          HOST="../zz-hostile-names"
+          mkdir -p "$HOST"
+          cat > "$HOST/SKILL.md" <<'EOF'
+          ---
+          name: zz-hostile-names
+          description: CI fixture proving hostile file names fail the build.
+          ---
+          # fixture
+          EOF
+          printf 'x\n' > "$HOST"'/$(touch PWNED).txt'
+          expect_build_fail 'hostile $(touch)' "path segment must match"
+          rm -f "$HOST"'/$(touch PWNED).txt'
+          printf 'x\n' > "$HOST/x;touch PWNED2;.txt"
+          expect_build_fail "hostile semicolon" "path segment must match"
+          rm -f "$HOST/x;touch PWNED2;.txt"
+          printf 'x\n' > "$HOST/q#frag?.txt"
+          expect_build_fail "hostile hash/query" "path segment must match"
+          rm -rf "$HOST"
+
+          # Nested install: 7 files, curl --create-dirs delivers all
+          NEST="../zz-nested-install"
+          rm -rf "$NEST" /tmp/zz-nested-install-out
+          mkdir -p "$NEST/sub/deep"
+          cat > "$NEST/SKILL.md" <<'EOF'
+          ---
+          name: zz-nested-install
+          description: CI fixture proving nested install delivers every file.
+          ---
+          # fixture skill
+          EOF
+          printf 'states\n' > "$NEST/states.md"
+          printf 'config: true\n' > "$NEST/config.yaml"
+          printf 'meta\n' > "$NEST/meta.json"
+          printf 'notes\n' > "$NEST/sub/notes.txt"
+          printf '{"ok":true}\n' > "$NEST/sub/deep/data.json"
+          printf 'a,b\n1,2\n' > "$NEST/sub/deep/table.csv"
           npm run build
-          test ! -e dist/files/zz-files-symlink-ok/notes.txt
-          # Ensure secret never landed under dist/files
-          ! grep -R 'SECRET=nope' dist/files || { echo 'secret leaked'; exit 1; }
-          rm -rf "$GOOD" ../site/secret.env.ci
-          echo "Symlink skip OK"
+          test -f dist/files/zz-nested-install/SKILL.md
+          test -f dist/files/zz-nested-install/sub/notes.txt
+          test -f dist/files/zz-nested-install/sub/deep/data.json
+          # Parse install UI, assert SKILL.md first + --create-dirs, then replay
+          # the generated curl command against a local server (7/7 files).
+          python3 - <<'PY'
+          from pathlib import Path
+          import html as htmlmod
+          import http.server
+          import re
+          import shutil
+          import subprocess
+          import threading
+          from functools import partial
+
+          page = Path("dist/zz-nested-install/index.html").read_text()
+          m = re.search(r'file-list--install">(.*?)</ul>', page, re.S)
+          assert m, "missing install list"
+          hrefs = re.findall(r'href="(/files/zz-nested-install/[^"]+)"\s+download', m.group(1))
+          names = [h.split("/files/zz-nested-install/", 1)[1] for h in hrefs]
+          assert names, "no install files parsed"
+          assert names[0] == "SKILL.md", names
+          assert "sub/notes.txt" in names and "sub/deep/data.json" in names, names
+          assert len(names) == 7, names
+          assert "--create-dirs" in page
+          assert "curl --create-dirs -fsSLo '" in page
+          pre = re.search(r'install-snippet.*?<pre[^>]*><code>(.*?)</code></pre>', page, re.S)
+          assert pre, "missing install snippet"
+          cmd = htmlmod.unescape(pre.group(1))
+          assert all(f"'{n}'" in cmd or f"'zz-nested-install/{n}'" in cmd for n in names)
+
+          handler = partial(http.server.SimpleHTTPRequestHandler, directory="dist")
+          server = http.server.ThreadingHTTPServer(("127.0.0.1", 8765), handler)
+          thread = threading.Thread(target=server.serve_forever, daemon=True)
+          thread.start()
+
+          out = Path("/tmp/zz-nested-install-out")
+          if out.exists():
+              shutil.rmtree(out)
+          out.mkdir(parents=True)
+          script = Path("/tmp/zz-nested-install.sh")
+          script.write_text(cmd.replace("https://skills.merze.ai", "http://127.0.0.1:8765"))
+          try:
+              subprocess.run(["bash", str(script)], cwd=out, check=True)
+          finally:
+              server.shutdown()
+
+          got = sorted(p.relative_to(out / "zz-nested-install").as_posix()
+                       for p in (out / "zz-nested-install").rglob("*") if p.is_file())
+          assert len(got) == 7, got
+          for name in names:
+              src = Path("dist/files/zz-nested-install") / name
+              dst = out / "zz-nested-install" / name
+              assert src.read_bytes() == dst.read_bytes(), name
+          print("Nested install 7/7 OK:", got)
+          PY
+          rm -rf "$NEST" /tmp/zz-nested-install-out /tmp/zz-nested-install.sh
+
+          # Github gate self-test: raw png append + gunzipped wasm injection
+          npm run build
+          python3 - <<'PY'
+          import gzip
+          import shutil
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          dist = Path("dist")
+
+          def run_scrub_on_copy(mutate, label):
+              with tempfile.TemporaryDirectory() as td:
+                  poisoned = Path(td) / "dist"
+                  shutil.copytree(dist, poisoned)
+                  mutate(poisoned)
+                  bak = dist.parent / "dist.bak-gate"
+                  if bak.exists():
+                      shutil.rmtree(bak)
+                  dist.rename(bak)
+                  try:
+                      poisoned.rename(dist)
+                      r = subprocess.run(
+                          ["node", "scripts/scrub-github.mjs"],
+                          capture_output=True,
+                          text=True,
+                      )
+                  finally:
+                      if dist.exists():
+                          shutil.rmtree(dist)
+                      bak.rename(dist)
+                  if r.returncode == 0:
+                      print(r.stdout)
+                      print(r.stderr)
+                      raise SystemExit(f"Expected gate fail: {label}")
+                  print(f"OK gate fail: {label}")
+                  print((r.stderr or r.stdout).strip().splitlines()[-3:])
+
+          def inject_logo(root: Path):
+              with (root / "logo.png").open("ab") as f:
+                  f.write(b"github")
+
+          def inject_wasm(root: Path):
+              wasm = root / "pagefind" / "wasm.en.pagefind"
+              raw = wasm.read_bytes()
+              try:
+                  body = gzip.decompress(raw)
+              except Exception:
+                  body = raw
+              wasm.write_bytes(gzip.compress(body + b"\0github\0"))
+
+          run_scrub_on_copy(inject_logo, "logo.png")
+          run_scrub_on_copy(inject_wasm, "gunzipped wasm.en.pagefind")
+          PY
+
           # Restore clean dist for later steps
           npm run build
 

@@ -4,12 +4,12 @@
  *
  * Policy (documented in site/DESIGN.md):
  * - Scrub Pagefind UI translator credit URLs first.
- * - Allowlist ONLY:
- *   1) Pagefind's own runtime under dist/pagefind/*.{js,wasm} if they still
- *      contain "github" after scrub (third-party credits we cannot remove),
- *   2) the literal term "github-copilot".
- * - Any other hit — including skill content under dist/files/ — fails the build.
- * - Scans text files and decompressed Pagefind gzip indexes (.pf_*).
+ * - Allowlist ONLY the literal term "github-copilot".
+ * - Fail closed: every other hit in any dist file (text, indexes, wasm,
+ *   images including PNG zTXt/iTXt, fonts) fails the build — including skill
+ *   content under dist/files/.
+ * - Any file starting with gzip magic `1f 8b` is gunzipped before scanning.
+ * - Unreadable files fail the build (no warn-and-skip).
  *
  * This is the single scanner; CI re-runs the same script rather than a second
  * divergent grep.
@@ -32,20 +32,93 @@ function walk(dir, out = []) {
   return out;
 }
 
-function isPagefindRuntime(rel) {
-  return (
-    /^pagefind\/.+\.(js|mjs|cjs|wasm)$/i.test(rel) ||
-    /^pagefind\/.+\.wasm$/i.test(rel)
-  );
-}
-
 function stripAllowedMentions(text) {
-  // Literal product term allowed in skill / site copy.
   return text.replace(/github-copilot/gi, "");
 }
 
 function containsGithub(text) {
   return /github/i.test(stripAllowedMentions(text));
+}
+
+function isGzip(buf) {
+  return buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
+}
+
+/** Decode PNG tEXt / zTXt / iTXt chunk payloads for text scanning. */
+function pngTextPayloads(buf) {
+  if (buf.length < 8) return [];
+  const sig = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  if (!buf.subarray(0, 8).equals(sig)) return [];
+
+  const out = [];
+  let offset = 8;
+  while (offset + 12 <= buf.length) {
+    const length = buf.readUInt32BE(offset);
+    const type = buf.toString("ascii", offset + 4, offset + 8);
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    if (dataEnd + 4 > buf.length) break;
+    const data = buf.subarray(dataStart, dataEnd);
+
+    try {
+      if (type === "tEXt") {
+        out.push(data.toString("latin1"));
+      } else if (type === "zTXt") {
+        const nul = data.indexOf(0);
+        if (nul >= 0 && nul + 2 <= data.length) {
+          // compression method byte at nul+1; zlib payload follows
+          const inflated = zlib.inflateSync(data.subarray(nul + 2));
+          out.push(
+            data.subarray(0, nul).toString("latin1") +
+              "\0" +
+              inflated.toString("utf8"),
+          );
+        }
+      } else if (type === "iTXt") {
+        // keyword\0 compressionFlag compressionMethod language\0 translated\0 text
+        let i = 0;
+        const nextCString = () => {
+          const start = i;
+          const z = data.indexOf(0, start);
+          if (z < 0) return null;
+          const s = data.subarray(start, z);
+          i = z + 1;
+          return s;
+        };
+        const keyword = nextCString();
+        if (!keyword || i + 2 > data.length) {
+          // fall through
+        } else {
+          const compressionFlag = data[i];
+          i += 2; // flag + method
+          const language = nextCString();
+          const translated = nextCString();
+          if (language && translated && i <= data.length) {
+            const textBytes = data.subarray(i);
+            const text =
+              compressionFlag === 1
+                ? zlib.inflateSync(textBytes).toString("utf8")
+                : textBytes.toString("utf8");
+            out.push(
+              keyword.toString("utf8") +
+                "\0" +
+                language.toString("utf8") +
+                "\0" +
+                translated.toString("utf8") +
+                "\0" +
+                text,
+            );
+          }
+        }
+      }
+    } catch {
+      // Malformed chunk — still scan raw chunk bytes below via latin1 on whole file.
+    }
+
+    offset = dataEnd + 4; // skip CRC
+    if (type === "IEND") break;
+  }
+  return out;
 }
 
 const PAGEFIND_SCRUBS = [
@@ -69,54 +142,48 @@ const offenders = [];
 
 for (const file of walk(dist)) {
   const rel = path.relative(dist, file).split(path.sep).join("/");
-  const base = path.basename(file);
-
-  // Decompress Pagefind gzip indexes and scan
-  if (/\.pf_(fragment|index|meta)$/i.test(base) || /\.pf_/i.test(base)) {
-    try {
-      const raw = fs.readFileSync(file);
-      let text;
-      try {
-        text = zlib.gunzipSync(raw).toString("utf8");
-      } catch {
-        text = raw.toString("utf8");
-      }
-      if (containsGithub(text)) {
-        if (isPagefindRuntime(rel)) continue;
-        offenders.push(`${rel} (pagefind index)`);
-      }
-    } catch (err) {
-      console.warn(`Could not scan ${rel}:`, err.message);
-    }
-    continue;
-  }
-
-  if (!/\.(html|js|mjs|cjs|css|json|txt|xml|md|svg|map|csv|wasm)$/i.test(file)) {
-    // Extensionless text-ish
-    if (base.includes(".")) continue;
-  }
 
   let buf;
   try {
     buf = fs.readFileSync(file);
-  } catch {
+  } catch (err) {
+    offenders.push(`${rel} (unreadable: ${err.message})`);
     continue;
   }
 
-  // wasm / binary: search as latin1 byte string
-  if (buf.includes(0) || /\.wasm$/i.test(file)) {
-    const text = buf.toString("latin1");
-    if (containsGithub(text)) {
-      if (isPagefindRuntime(rel)) continue;
-      offenders.push(rel);
+  // Gunzip any gzip container (Pagefind .pf_*, wasm.*.pagefind, etc.)
+  let scanBuf = buf;
+  let gunzipped = false;
+  if (isGzip(buf)) {
+    try {
+      scanBuf = zlib.gunzipSync(buf);
+      gunzipped = true;
+    } catch (err) {
+      offenders.push(`${rel} (gzip unreadable: ${err.message})`);
+      continue;
     }
-    continue;
   }
 
-  const text = buf.toString("utf8");
+  const label = gunzipped ? `${rel} (gunzipped)` : rel;
+
+  // PNG compressed/international text chunks
+  if (/\.png$/i.test(file)) {
+    for (const payload of pngTextPayloads(buf)) {
+      if (containsGithub(payload)) {
+        offenders.push(`${rel} (png text chunk)`);
+        break;
+      }
+    }
+  }
+
+  const text = scanBuf.toString(
+    scanBuf.includes(0) ||
+      !/^[\x09\x0a\x0d\x20-\x7e]*$/.test(scanBuf.toString("latin1"))
+      ? "latin1"
+      : "utf8",
+  );
   if (containsGithub(text)) {
-    if (isPagefindRuntime(rel)) continue;
-    offenders.push(rel);
+    offenders.push(label);
   }
 }
 
@@ -127,9 +194,7 @@ if (scrubbed) {
 if (offenders.length) {
   console.error("dist/ still contains disallowed 'github' mentions:");
   for (const o of offenders) console.error(" ", o);
-  console.error(
-    "Allowed: pagefind/*.{js,wasm} runtime leftovers after scrub; literal 'github-copilot'.",
-  );
+  console.error("Allowed: literal 'github-copilot' only.");
   process.exit(1);
 }
 

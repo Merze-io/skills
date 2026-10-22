@@ -5,8 +5,11 @@
  */
 export {
   ALLOWED_SKILL_FILE_EXT,
+  SKILL_PATH_SEGMENT_RE,
+  assertSafeSkillRelativePath,
   isAllowedSkillFileName,
   isPublishableSkillFolder,
+  isSafeSkillSourceFile,
   listPublishableSkillDirs,
   listSafeSkillFiles,
 } from "./skill-sources.mjs";

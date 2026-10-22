@@ -68,6 +68,8 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -114,6 +116,7 @@ a:hover {
 }
 
 .site-header {
+  width: 100%;
   border-bottom: 1px solid var(--color-border);
   background: var(--color-bg);
 }
@@ -171,12 +174,17 @@ a:hover {
 }
 
 .site-main {
+  flex: 1 0 auto;
+  width: 100%;
   max-width: min(var(--container), 100%);
   margin: 0 auto;
   padding: 1rem 1.25rem 4rem;
 }
 
 .site-footer {
+  width: 100%;
+  flex-shrink: 0;
+  margin-top: auto;
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -206,7 +214,7 @@ a:hover {
   font-size: clamp(1.75rem, 5vw, 2.5rem);
   line-height: 1.15;
   letter-spacing: -0.03em;
-  color: var(--color-brand);
+  color: var(--color-heading);
   font-weight: 750;
   margin: 0 0 0.5rem;
 }
@@ -305,16 +313,6 @@ h3 {
   cursor: not-allowed;
 }
 
-.btn--primary {
-  background: var(--color-brand);
-  color: #fff;
-}
-
-.btn--primary:hover:not(:disabled) {
-  background: var(--color-brand-hover);
-  color: #fff;
-}
-
 .btn--secondary {
   background: var(--color-bg-elevated);
   color: var(--color-brand);
@@ -323,12 +321,6 @@ h3 {
 
 .btn--secondary:hover:not(:disabled) {
   border-color: var(--color-border-strong);
-}
-
-.btn--ghost {
-  background: transparent;
-  color: var(--color-link);
-  padding-inline: 0.5rem;
 }
 
 .btn--sm {
@@ -402,12 +394,6 @@ h3 {
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   font-size: 0.8125rem;
-}
-
-.install-hint {
-  margin: 0.75rem 0 0;
-  font-size: 0.8125rem;
-  color: var(--color-muted);
 }
 
 .copy-control {
@@ -681,8 +667,7 @@ fieldset.filter-group legend {
   border-color: var(--color-link);
 }
 
-.chip:has(input:checked),
-.chip.is-active {
+.chip:has(input:checked) {
   background: color-mix(in srgb, var(--color-accent) 12%, white);
   border-color: color-mix(in srgb, var(--color-accent) 55%, white);
   color: var(--color-brand);
