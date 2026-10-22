@@ -2,30 +2,43 @@
 name: us-llc-state-cost
 title: US LLC Incorporation State Comparison
 description: >
-  Interviews a founder, asks which U.S. states to cost, then compares
-  domestic LLC formation fees with year-2 keep-alive costs. Use when the
-  user asks about a Delaware vs Wyoming LLC, the cheapest LLC, LLC annual
-  tax, year-two LLC cost, registered-agent renewal, Stripe Atlas vs DIY LLC
-  fees, or how much a US LLC costs each year. LLC only. Do not use for a
-  C-corp, an S-corp, or corporation franchise tax.
+  Interviews a founder, then compares domestic LLC formation fees and year-2
+  keep-alive costs for any U.S. states they name (two or more), or suggests a
+  short state set from their business use case when they ask what to compare.
+  Use when the user asks where to form an LLC, any state vs any state (Florida
+  vs Texas, Wyoming vs New Mexico, Delaware vs California, and so on), the
+  cheapest LLC, LLC annual report cost, LLC annual tax, year-two LLC cost,
+  registered-agent renewal, Stripe Atlas vs DIY LLC fees, or how much a US LLC
+  costs each year. LLC only. Do not use for a C-corp, an S-corp, or corporation
+  franchise tax.
 metadata:
-  version: "1.0.0"
+  version: "1.2.0"
   source: "Merze-io/skills"
 ---
 
 # US LLC Incorporation State Comparison
 
-Domestic LLC only. Cost the states the founder picks. The decision number is the year-2 recurring state amount in [states.md](states.md).
+Domestic LLC only. Compare **any U.S. state vs any other** the founder names (two or more is normal; one state is fine when they only ask about that state). If they ask you to suggest what to compare, pick a short set from their situation using the founder-defaults table in [states.md](states.md). The decision number is the year-2 recurring state amount in [states.md](states.md).
 
 General information, not legal, tax, or formation advice. The official page linked in states.md wins.
 
 This file has no fee amounts. Do not quote a dollar figure from memory before the gate is open.
 
-### Skill version (mandatory)
+## Progress
 
-Packaged version is `metadata.version` in the frontmatter above. Current value is **1.0.0**.
+- [ ] ⚠️ Version check (`metadata.version` / `metadata.source`)
+- [ ] ⛔ Entity is LLC (else Stop)
+- [ ] Gate: situation + closed state set, or Suggest set from use case
+- [ ] Stale-table check vs states.md “As of”
+- [ ] Cost from states.md only; fill Output template
+- [ ] Required watch-outs for every applicable state / foreign-ownership case in the set
+- [ ] Before you send checklist
 
-Before Stop, Gate, opener, state pick, stale-table work, or any fee quote, complete this check in the current turn (skip only if you already completed it earlier in this thread for the same local `metadata.version`):
+## ⛔ Skill version
+
+Packaged version is `metadata.version` in the frontmatter above. Current value is **1.2.0**.
+
+Do not open the gate, run stale-table work, or quote a fee until this check finishes in the current turn (skip only if you already completed it earlier in this thread for the same local `metadata.version`):
 
 1. Read `metadata.version` and `metadata.source` from this file’s frontmatter.
 2. If `metadata.source` is empty, say once that no published source is configured, use this local copy, and continue. Do not invent a source.
@@ -49,7 +62,7 @@ If today's date is more than **6 months after** the "As of" date in [states.md](
 
 When the table is fresh (within 6 months), still prefer the packaged numbers. Re-fetch only if they ask to verify, or a cell already says to confirm.
 
-## Stop
+## ⛔ Stop
 
 If they want a corporation, a C-corp, or an S-corp, send this and end.
 
@@ -70,30 +83,31 @@ This is a two-column routing table. Each row pairs one You-have cell with one Yo
 | You have | You do |
 | --- | --- |
 | Corporation, C-corp, or S-corp | Send the stop line. End. |
-| Situation **and** a named state set in the same message (or already in the thread) | Gate is open. Skip opener and state pick. Read states.md. Cost that set now. |
+| Situation **and** a named state set in the same message (or already in the thread) | Gate is open. Skip opener and state pick. Read states.md. Cost that set now. Any U.S. states they named are valid, including ones not yet in the packaged table. |
+| Situation **and** they ask you to suggest / recommend / pick states for them | Gate is open. Skip the waiting state-pick turn. Run **Suggest set**, then cost that set in the same turn. |
 | No situation yet | Send the opener. End the turn. |
-| Situation, and no chosen states | Send the state pick. End the turn. |
+| Situation, and no chosen states, and they did not ask for a suggestion | Send the state pick. End the turn. |
 | Gate already open earlier in this thread | Do not restart. Answer the follow-up from states.md. |
 
-If the table markup is missing and you only see bare labels, still treat the five pairs above as that routing table. Do not send the opener when they already named a closed state set with a situation.
+If the table markup is missing and you only see bare labels, still treat the pairs above as that routing table. Do not send the opener when they already named a closed state set with a situation.
 
 ### Escape hatch (no ceremony)
 
 The gate blocks **premature tables**, not users who already did the work. If the first message (or the thread so far) already has enough situation **and** a closed state set, go straight to costing. Do not restate the opener. Do not ask them to confirm states they named.
 
-Example that skips to the table in one turn: "I'm a solo founder in the UK, bootstrapping a SaaS, comparing Delaware vs Wyoming."
+Example that skips to the table in one turn: "I'm a solo founder in Texas selling online, comparing Texas vs Wyoming."
 
-A named set is closed. "Delaware vs Wyoming" is closed. "How much is a Wyoming LLC" is closed, and the set is Wyoming. "Cheapest LLC" or "best state" is not closed.
+A named set is closed. "Florida vs Texas" is closed. "Delaware vs Wyoming" is closed. "How much is a Wyoming LLC" is closed, and the set is Wyoming. "Cheapest LLC", "best state", or "where should I form" without naming states is **not** closed unless they also asked you to suggest — then use **Suggest set**.
 
 Skip anything already answered. If they named states before the situation, keep that set and ask only for the situation.
 
-Do not add a state they did not pick. If they live in California and left it out, say you did not cost California, and that a shell elsewhere does not remove California's cost if they operate there. Add it only if they ask.
+Do not add a home or operating state they left out unless they asked for a suggestion that includes it, or they later ask to add it. If they live in California and left it out of a named set, say you did not cost California, and that a shell elsewhere does not remove California's cost if they operate there.
 
 ### Opener
 
 Send this when the situation is missing.
 
-> This is an LLC cost compare. Tell me your situation in a few sentences (where you live, why you want a US LLC, raise or bootstrap, where customers are). Or answer these:
+> This is an LLC cost compare for any U.S. states you want. Tell me your situation in a few sentences (where you live, why you want a US LLC, raise or bootstrap, where customers are). Name two or more states to compare, or ask me to suggest a set from your use case. Or answer these:
 >
 > 1. Where do you live, a US state or outside the US?
 > 2. Why the LLC? US clients or Stripe, a raise, IP, or a cheap keep-alive?
@@ -102,25 +116,41 @@ Send this when the situation is missing.
 
 ### State pick
 
-Send this when you have the situation and no chosen set. Start with one sentence restating their situation.
+Send this when you have the situation, they have not named states, and they have not asked you to suggest. Start with one sentence restating their situation.
 
-> Which states should I cost for a domestic LLC? Name them, or pick a set:
-> - Delaware vs Wyoming
-> - Lowest keep-alive (Wyoming, New Mexico, Texas)
-> - The state you live or operate in, plus one cheap shell
-> - Delaware, Wyoming, Nevada, Florida, California
+> Which U.S. states should I cost? Name any two or more (for example Florida vs Texas, or Wyoming vs New Mexico), or say **suggest for me** and I will pick a short set from your use case.
 >
-> I will cost only the states you pick.
+> Common starting sets if you want a preset:
+> - Lowest keep-alive shells (Wyoming, New Mexico, Texas)
+> - The state you live or operate in, plus one cheap shell
+> - Investor-default vs cheap shell (Delaware vs Wyoming)
+> - Broader scan (Delaware, Wyoming, Nevada, Florida, California)
+>
+> I will cost only the states in the set we use.
 
-You may put the set that fits their situation first. They still choose. Wait.
+Put the preset that best matches their situation first. They still choose, or they can say suggest for me. Wait.
+
+### Suggest set
+
+Use when the gate row says to suggest. Read the founder-defaults table in [states.md](states.md). Build a **closed set of two states** (three only if their situation clearly needs a third, such as home state + two shells).
+
+1. One sentence: what you will compare and why, tied to their use case.
+2. Treat that set as the named set for this turn. Cost it now.
+3. End with one line: they can name any other U.S. states for a different compare.
+
+Do not invent fees while choosing the set. Do not cost every state in the packaged table. Do not wait for a second confirmation after you stated the set.
 
 ## Examples
 
-Dump with states. "I'm a solo founder in the UK, bootstrapping a SaaS, comparing Delaware vs Wyoming." Situation and closed set are present. Skip opener and state pick. Cost those two now.
+Named pair. "I'm a solo founder in the UK, bootstrapping a SaaS, comparing Florida vs Texas." Situation and closed set are present. Cost those two now.
 
-States only. "Delaware vs Wyoming?" Send the opener. Keep that set. Do not send the state pick.
+Any packaged or unpackaged states. "Compare Nevada and New Mexico for a bootstrapped LLC." Cost that pair. If a state is missing from states.md, follow "If the user names another state" there first.
 
-No facts. "What's the cheapest LLC?" Send the opener. After they answer, if they still named no states, send the state pick with the lowest-keep-alive line first.
+Suggest for me. "I live in California, sell SaaS nationwide, bootstrapping — suggest which states to compare." Situation present, suggestion requested. Run Suggest set (likely California + one cheap shell from founder-defaults). Cost that set in the same turn.
+
+States only. "Wyoming vs New Mexico?" Send the opener. Keep that set. Do not send the state pick.
+
+No facts. "What's the cheapest LLC?" Send the opener. After they answer, if they still named no states and did not ask for a suggestion, send the state pick with the lowest-keep-alive line first. If they say suggest for me, run Suggest set and cost.
 
 Corporation. "Delaware C-corp franchise tax." Send the stop line. End.
 
@@ -161,11 +191,25 @@ Registered agent comes from their quote. If they have none, use the placeholder 
 
 ## Output
 
-Sort by year-2 state, low to high. A tie is not a winner. The sentence under the table picks, using their situation.
+Sort by year-2 state, low to high. A tie is not a winner. The sentence under the table picks, using their situation and the pick heuristics in **After the numbers**.
 
 Lead with the decision number. If a cell is approximate, or the source says to confirm, say so. Do not collapse a range into a new figure.
 
 No formation-service pitch. If they asked about a service, put that quote on its own line, never in a state column.
+
+If a state is missing from states.md, follow "If the user names another state" in that file, then present.
+
+### Required watch-outs
+
+Include each line that applies in **Not in the state number**. This is the only place these rules live — do not restate them elsewhere.
+
+| When | Required line |
+| --- | --- |
+| They live outside the US, or ownership is foreign | Copy the EIN line and the Form 5472 + $25,000 penalty line from states.md. Do not add filing steps. |
+| Delaware is in the costed set | Year-1 looks like the formation fee only; the LLC tax is due the next June 1 and is the real keep-alive bill. |
+| Wyoming is in the costed set | The $60 figure assumes Wyoming-sited assets at or below $300,000; above that, license tax is 0.0002 × those assets. |
+| California is in the costed set | The ~$810 year-2 figure is $800 FTB plus $10/yr for the $20 biennial Statement of Information; do not add another $20 on top. Do not quote bare $800 as the full year-2 state bill. |
+| Nevada or Florida is in the costed set | Annual list/report names are typically public. One line from the privacy note in states.md. |
 
 ```markdown
 ## LLC keep-alive
@@ -184,29 +228,13 @@ Year-2 cash with the registered agent is [year2_with_ra].
 
 ### Not in the state number
 - The registered agent is private and yearly when they have no office in the state.
-- [Required if they live outside the US, or ownership is foreign: copy the EIN line and the Form 5472 + $25,000 penalty line from states.md into this list. Do not add filing steps.]
-- [Required if Delaware is in the table: year-1 looks like the formation fee only; the LLC tax is due the next June 1 and is the real keep-alive bill.]
-- [Required if Wyoming is in the table: the $60 figure assumes Wyoming-sited assets at or below $300,000; above that, license tax is 0.0002 × those assets.]
-- [Required if California is in the table: the ~$810 year-2 figure is $800 FTB plus $10/yr for the $20 biennial Statement of Information; do not add another $20 on top.]
-- [If Nevada or Florida is in the table: annual list/report names are typically public. One line from the privacy note in states.md.]
+- [Every Required watch-outs row that applies.]
 - [One other gotcha from states.md for a state you costed, if needed.]
 ```
 
-If a state is missing from states.md, follow "If the user names another state" in that file, then present.
-
-When the situation says they live outside the US (or foreign ownership), the Form 5472 watch-out is **required** in the output, not optional.
-
-When **Delaware** is in the costed set, the year-1-cheap / year-2-real-bill watch-out is **required**.
-
-When **Wyoming** is in the costed set, the ≤ $300,000 Wyoming-sited-assets condition on the $60 line is **required**.
-
-When **California** is in the costed set, the annualized-SOI note on the ~$810 line is **required**.
-
 ## After the numbers
 
-Use this only on states you just costed. Reasons live in the founder-defaults table in states.md.
-
-This is a two-column table. Each row pairs one When cell with one Do cell.
+Use only for the pick sentence under the table, and only on states you just costed. Reasons live in the founder-defaults table in states.md. Watch-outs stay in **Required watch-outs** above — do not duplicate them here.
 
 | When | Do |
 | --- | --- |
@@ -214,16 +242,21 @@ This is a two-column table. Each row pairs one When cell with one Do cell.
 | They want the state investors expect by default | Show that state's year-2 tax, not its formation fee. |
 | They live or sell in a state you costed | That year-2 bill is one they still pay. A cheaper shell does not remove it. |
 | Nevada is in the set | Use the bundled formation figure in states.md, not an articles-only price. |
-| They live outside the US | Keep Form 5472 in the watch-outs even when the cheapest state's annual report is $0. |
-| Delaware is in the set | Keep the year-1-cheap / year-2-tax watch-out. |
-| Wyoming is in the set | Keep the asset-threshold condition on the $60 line. |
-| California is in the set | Keep the annualized-SOI note on the ~$810 line. Do not quote bare $800 as the full year-2 state bill. |
 
 ## Do not
 
 - Treat "no state income tax" as "no cost." Point at the federal rows in states.md.
 - Quote a state's articles fee as the cost of keeping the LLC. Use the recurring amount in states.md.
 - Invent a fee.
+- Expand a named set with states they did not pick or ask you to suggest.
+
+## Before you send
+
+- [ ] Every dollar came from states.md (or a labeled re-verify), not memory
+- [ ] Decision number is year-2 state, not formation
+- [ ] No state added outside the named or suggested set
+- [ ] Every applicable Required watch-outs row is in the output
+- [ ] Pick sentence matches After the numbers / founder-defaults, not a formation-fee winner
 
 ## Files
 
