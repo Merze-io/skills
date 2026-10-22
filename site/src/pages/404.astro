@@ -8,12 +8,13 @@ import PagefindSearch from "../components/PagefindSearch.astro";
   description="That page is not in the Merze skills catalog."
   canonicalPath="/404/"
 >
-  <header>
-    <h1>Page not found</h1>
+  <section class="not-found" aria-labelledby="not-found-heading">
+    <div class="not-found__glow" aria-hidden="true"></div>
+    <h1 id="not-found-heading">Page not found</h1>
     <p class="lede">
       That URL is not in the catalog.
       <a href="/">Back to all skills</a>.
     </p>
-  </header>
-  <PagefindSearch />
+    <PagefindSearch />
+  </section>
 </BaseLayout>

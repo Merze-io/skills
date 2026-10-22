@@ -4,10 +4,10 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 
 <BaseLayout
   title="About"
-  description="What Agent Skills are, how to install them, and how to contribute to Merze-io/skills."
+  description="What Agent Skills are, how to install them from skills.merze.ai, and how to contribute."
   canonicalPath="/about/"
 >
-  <article class="prose">
+  <article class="prose about-page">
     <h1>About Agent Skills</h1>
     <p>
       Agent Skills are folders of instructions that coding agents can load on
@@ -16,11 +16,25 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     </p>
 
     <h2>Install a skill</h2>
-    <p>From the catalog detail page, copy the install command:</p>
-    <pre tabindex="0"><code>npx skills add Merze-io/skills --skill &lt;slug&gt;</code></pre>
     <p>
-      Or browse the source on
-      <a href="https://github.com/Merze-io/skills">GitHub</a>.
+      Open any skill in the catalog and use the download or copy actions on the
+      detail page:
+    </p>
+    <ol>
+      <li>
+        Download <code>SKILL.md</code> (and any supporting files) from this
+        site.
+      </li>
+      <li>
+        Place them in your agent’s skills directory as
+        <code>&lt;slug&gt;/SKILL.md</code>.
+      </li>
+      <li>Reload or restart the agent so it discovers the new skill.</li>
+    </ol>
+    <p>
+      Domain-based install routes (for example
+      <code>/skill/&lt;name&gt;</code>) are planned separately and are not part
+      of this catalog yet.
     </p>
 
     <h2>Contribute a skill</h2>
@@ -51,8 +65,8 @@ import BaseLayout from "../layouts/BaseLayout.astro";
     <h2>Merze</h2>
     <p>
       Skills are published by
-      <a href="https://merze.ai">Merze</a>. Questions or contributions welcome
-      via GitHub pull requests.
+      <a href="https://merze.ai">Merze</a>. Questions or contributions are
+      welcome through the usual review process for this catalog.
     </p>
   </article>
 </BaseLayout>

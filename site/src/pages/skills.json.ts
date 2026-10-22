@@ -1,15 +1,15 @@
 import type { APIRoute } from "astro";
 import {
   getSkillListItems,
-  githubBlobUrl,
-  installCommand,
+  installHint,
+  skillFileUrl,
 } from "../lib/skills";
 
 export const GET: APIRoute = async () => {
   const skills = await getSkillListItems();
   const payload = {
     generatedAt: new Date().toISOString(),
-    source: "https://github.com/Merze-io/skills",
+    source: "https://skills.merze.ai",
     site: "https://skills.merze.ai",
     skills: skills.map((s) => ({
       name: s.name,
@@ -21,9 +21,9 @@ export const GET: APIRoute = async () => {
       tags: s.tags,
       hasSupporting: s.hasSupporting,
       updatedAt: s.updatedAt,
-      install: installCommand(s.slug),
+      install: installHint(s.slug),
       url: `https://skills.merze.ai/${s.slug}/`,
-      github: githubBlobUrl(s.slug),
+      download: `https://skills.merze.ai${skillFileUrl(s.slug)}`,
     })),
   };
 

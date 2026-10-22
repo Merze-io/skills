@@ -44,6 +44,19 @@ jobs:
           grep -q 'class="heading-anchor"' dist/us-llc-state-cost/index.html
           grep -q 'id="skill-version-mandatory"' dist/us-llc-state-cost/index.html
           grep -q 'href="#skill-version-mandatory"' dist/us-llc-state-cost/index.html
+          test -f dist/files/us-llc-state-cost/SKILL.md
+          test -f dist/files/us-llc-state-cost/states.md
+
+      - name: Fail if dist contains github (case-insensitive)
+        working-directory: site
+        run: |
+          set -euo pipefail
+          # Build already runs scripts/scrub-github.mjs; re-scan to gate CI.
+          if grep -RIi --binary-files=without-match 'github' dist/; then
+            echo "Built dist/ must not contain the string 'github' (case-insensitive)"
+            exit 1
+          fi
+          echo "No github references in dist/"
 
       - name: Link check (local routes + #fragments)
         working-directory: site
@@ -206,32 +219,11 @@ jobs:
           rm -rf "$DRAFT"
           echo "_drafts ignored OK"
 
-      - name: Serve dist and run axe
+      - name: Axe at real viewports (320 / 360 / 1280)
         working-directory: site
-        run: |
-          npx --yes serve@14.2.4 dist -l 4173 &
-          SERVE_PID=$!
-          trap 'kill $SERVE_PID 2>/dev/null || true' EXIT
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:4173/ >/dev/null; then break; fi
-            sleep 0.5
-          done
-          AXE_PAGES=(
-            http://127.0.0.1:4173/
-            http://127.0.0.1:4173/us-llc-state-cost/
-            http://127.0.0.1:4173/us-llc-state-cost/states/
-            http://127.0.0.1:4173/about/
-            http://127.0.0.1:4173/404.html
-          )
-          npx --yes @axe-core/cli@4.10.1 "${AXE_PAGES[@]}" --exit
-          # Mobile width catch scrollable-region-focusable on overflowing <pre>/code
-          npx --yes @axe-core/cli@4.10.1 \
-            http://127.0.0.1:4173/ \
-            http://127.0.0.1:4173/us-llc-state-cost/ \
-            http://127.0.0.1:4173/us-llc-state-cost/states/ \
-            http://127.0.0.1:4173/about/ \
-            --chrome-options="window-size=360,800" \
-            --exit
+        env:
+          PUPPETEER_CACHE_DIR: ${{ runner.temp }}/puppeteer
+        run: npm run axe:viewports
 
   docker-smoke:
     runs-on: ubuntu-latest

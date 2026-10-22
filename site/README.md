@@ -1,6 +1,6 @@
 # skills.merze.ai
 
-Static catalog site for [Merze-io/skills](https://github.com/Merze-io/skills).
+Static catalog site for Merze public Agent Skills.
 
 ## Develop
 

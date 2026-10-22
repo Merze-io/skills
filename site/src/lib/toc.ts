@@ -1,4 +1,4 @@
-import GithubSlugger from "github-slugger";
+import { HeadingSlugger } from "./slugify";
 
 export type TocItem = {
   depth: number;
@@ -11,7 +11,7 @@ export type TocItem = {
  * never skip a level under the page h1.
  */
 export function extractToc(markdown: string): TocItem[] {
-  const slugger = new GithubSlugger();
+  const slugger = new HeadingSlugger();
   const items: TocItem[] = [];
   const lines = markdown.split("\n");
   let inFence = false;

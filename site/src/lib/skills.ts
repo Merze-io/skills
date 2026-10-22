@@ -144,20 +144,18 @@ export async function getSupportingFiles(
     );
 }
 
-export function installCommand(slug: string): string {
-  return `npx skills add Merze-io/skills --skill ${slug}`;
+/** Site-local download for a skill file (served from dist at build time). */
+export function skillFileUrl(slug: string, path = "SKILL.md"): string {
+  const cleaned = path.replace(/^\/+/, "");
+  return `/files/${slug}/${cleaned}`;
 }
 
-export function githubBlobUrl(slug: string, path = "SKILL.md"): string {
-  return `https://github.com/Merze-io/skills/blob/main/${slug}/${path}`;
-}
-
-export function githubEditUrl(slug: string, path = "SKILL.md"): string {
-  return `https://github.com/Merze-io/skills/edit/main/${slug}/${path}`;
-}
-
-export function githubRawUrl(slug: string, path: string): string {
-  return `https://raw.githubusercontent.com/Merze-io/skills/main/${slug}/${path}`;
+/**
+ * Generic install hint — no remote registry URL. Prefer downloading SKILL.md
+ * from this domain and placing it in the agent's skills folder.
+ */
+export function installHint(slug: string): string {
+  return `Download SKILL.md from ${skillFileUrl(slug)} and add it to your agent's skills directory as ${slug}/SKILL.md.`;
 }
 
 /** Optional last-updated from Coolify/build env; omit when absent. */

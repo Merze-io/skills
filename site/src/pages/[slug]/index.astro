@@ -7,10 +7,9 @@ import {
   extractWhenToUseFromBody,
   getAllSkills,
   getSupportingFiles,
-  githubBlobUrl,
-  githubEditUrl,
-  installCommand,
+  installHint,
   parseDescription,
+  skillFileUrl,
   skillSlug,
   formatUpdated,
   getSourceUpdatedAt,
@@ -34,9 +33,12 @@ const whenFromBody =
   parts.useWhen.length === 0 ? extractWhenToUseFromBody(body) : null;
 const toc = extractToc(body);
 const supporting = await getSupportingFiles(slug);
-const cmd = installCommand(slug);
+const downloadUrl = skillFileUrl(slug);
+const hint = installHint(slug);
 const updated = formatUpdated(getSourceUpdatedAt());
 const version = skill.data.metadata?.version ?? null;
+const tags = skill.data.metadata?.tags ?? [];
+const category = skill.data.metadata?.category ?? null;
 ---
 
 <BaseLayout
@@ -44,25 +46,31 @@ const version = skill.data.metadata?.version ?? null;
   description={parts.summary}
   canonicalPath={`/${slug}/`}
 >
-  <article data-pagefind-body>
-    <header>
+  <article data-pagefind-body class="skill-detail">
+    <header class="skill-detail__header">
+      <p class="back-row">
+        <a href="/" class="back-link">
+          <Icon name="arrow-left" size={16} />
+          All skills
+        </a>
+      </p>
       <h1>{skill.data.name}</h1>
       <p class="lede">{parts.summary}</p>
       <div class="skill-meta">
         {version && <span class="badge">v{version}</span>}
-        {updated && (
-          <span>
-            Updated <time datetime={getSourceUpdatedAt()!}>{updated}</time>
-          </span>
-        )}
-        <a href={githubBlobUrl(slug)} rel="noopener noreferrer">
-          <Icon name="github" size={16} />
-          View source on GitHub
-        </a>
-        <a href={githubEditUrl(slug)} rel="noopener noreferrer">
-          <Icon name="external" size={16} />
-          Edit
-        </a>
+        {category && <span class="badge badge--soft">{category}</span>}
+        {
+          tags.map((tag) => (
+            <span class="badge badge--soft">{tag}</span>
+          ))
+        }
+        {
+          updated && (
+            <span>
+              Updated <time datetime={getSourceUpdatedAt()!}>{updated}</time>
+            </span>
+          )
+        }
       </div>
     </header>
 
@@ -101,12 +109,20 @@ const version = skill.data.metadata?.version ?? null;
       )
     }
 
-    <section class="panel" aria-labelledby="install-heading">
+    <section class="panel panel--install" aria-labelledby="install-heading">
       <h2 class="panel__title" id="install-heading">Install</h2>
-      <div class="install-box">
-        <code tabindex="0">{cmd}</code>
-        <CopyButton text={cmd} />
+      <p class="panel__copy">
+        Download <code>SKILL.md</code> from this site and place it in your
+        agent’s skills folder as <code>{slug}/SKILL.md</code>.
+      </p>
+      <div class="install-actions">
+        <a class="btn btn--primary btn--sm" href={downloadUrl} download>
+          <Icon name="download" size={16} />
+          Download SKILL.md
+        </a>
+        <CopyButton url={downloadUrl} label="Copy SKILL.md" />
       </div>
+      <p class="install-hint">{hint}</p>
     </section>
 
     {
@@ -115,7 +131,7 @@ const version = skill.data.metadata?.version ?? null;
           <h2 class="panel__title" id="files-heading">
             Supporting files
           </h2>
-          <ul>
+          <ul class="file-list">
             {supporting.map((file) => {
               const fileSlug = file.id
                 .replace(/\\/g, "/")
@@ -128,6 +144,14 @@ const version = skill.data.metadata?.version ?? null;
                     <Icon name="file" size={14} />
                     {fileSlug}.md
                   </a>
+                  <a
+                    class="file-list__download"
+                    href={skillFileUrl(slug, `${fileSlug}.md`)}
+                    download
+                  >
+                    <Icon name="download" size={14} />
+                    <span class="sr-only">Download {fileSlug}.md</span>
+                  </a>
                 </li>
               );
             })}
@@ -136,7 +160,7 @@ const version = skill.data.metadata?.version ?? null;
       )
     }
 
-    <div class="layout-detail" style="margin-top:2rem">
+    <div class="layout-detail skill-detail__body">
       <div class="prose">
         <Content />
       </div>

@@ -28,7 +28,7 @@ Before Stop, Gate, opener, state pick, stale-table work, or any fee quote, compl
 
 1. Read `metadata.version` and `metadata.source` from this file’s frontmatter.
 2. If `metadata.source` is empty, say once that no published source is configured, use this local copy, and continue. Do not invent a source.
-3. If `metadata.source` is set (GitHub `owner/repo`, skills install URL, or raw publish URL):
+3. If `metadata.source` is set (`owner/repo`, skills install URL, or raw publish URL):
    - Prefer `npx skills update us-llc-state-cost -y -p` for a project install, or `-y -g` for a global install.
    - If the skill is not in the skills lock, fetch the published `SKILL.md` from that source and compare semver in `metadata.version`.
 4. If the published version is **greater** than the local version, pull/install it, **re-read** the updated `SKILL.md` and [states.md](states.md), and continue only from those files. Discard older instructions still in context.

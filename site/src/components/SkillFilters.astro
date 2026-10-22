@@ -15,7 +15,6 @@ const versions = [
 ].sort();
 const supportingYes = skills.filter((s) => s.hasSupporting).length;
 const supportingNo = skills.length - supportingYes;
-// Hide facets with fewer than 2 distinct values; supporting only when mixed.
 const showCategory = categories.length >= 2;
 const showTags = tags.length >= 2;
 const showVersions = versions.length >= 2;
@@ -81,14 +80,16 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
     )
   }
 
-  <p class="visually-hidden-live" aria-live="polite" data-filter-status></p>
+  <div class="catalog-status" aria-live="polite">
+    <p class="catalog-status__count" data-filter-status></p>
+  </div>
 </section>
 
-<ul class="skill-list" data-skill-list>
+<ul class="skill-grid" data-skill-list>
   {
     skills.map((skill) => (
       <li
-        class="skill-row"
+        class="skill-card"
         data-skill-row
         data-name={skill.name}
         data-summary={skill.summary}
@@ -99,21 +100,23 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
         data-supporting={skill.hasSupporting ? "yes" : "no"}
         data-updated={skill.updatedAt ?? ""}
       >
-        <a href={`/${skill.slug}/`}>
-          <span class="skill-row__name">{skill.name}</span>
-          <span class="skill-row__summary">{skill.summary}</span>
-          <span class="skill-row__meta">
+        <a class="skill-card__link" href={`/${skill.slug}/`}>
+          <div class="skill-card__top">
+            <h3 class="skill-card__name">{skill.name}</h3>
             {skill.version && <span class="badge">v{skill.version}</span>}
-            {skill.updatedAt && (
-              <time datetime={skill.updatedAt}>
-                {new Date(skill.updatedAt).toLocaleDateString("en-US", {
-                  year: "numeric",
-                  month: "short",
-                  day: "numeric",
-                })}
-              </time>
+          </div>
+          <p class="skill-card__summary">{skill.summary}</p>
+          <div class="skill-card__tags">
+            {skill.category && (
+              <span class="badge badge--soft">{skill.category}</span>
             )}
-          </span>
+            {skill.tags.map((tag) => (
+              <span class="badge badge--soft">{tag}</span>
+            ))}
+            {skill.hasSupporting && (
+              <span class="badge badge--soft">supporting files</span>
+            )}
+          </div>
         </a>
       </li>
     ))
@@ -130,6 +133,11 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
   </button>
 </div>
 
+<div class="loading-state" data-loading-state hidden aria-live="polite">
+  <div class="loading-state__pulse" aria-hidden="true"></div>
+  <p>Updating catalog…</p>
+</div>
+
 <script>
   type SkillRow = HTMLElement;
 
@@ -142,6 +150,9 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
   function applyFilters() {
     const root = document.querySelector("[data-skills-filters]");
     if (!root) return;
+
+    const loading = document.querySelector<HTMLElement>("[data-loading-state]");
+    if (loading) loading.hidden = false;
 
     const categories = selectedValues("[data-filter=category]");
     const tags = selectedValues("[data-filter=tag]");
@@ -190,6 +201,12 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
     const status = document.querySelector("[data-filter-status]");
     if (status) {
       status.textContent = `${visible} skill${visible === 1 ? "" : "s"} shown`;
+    }
+
+    if (loading) {
+      window.requestAnimationFrame(() => {
+        loading.hidden = true;
+      });
     }
   }
 

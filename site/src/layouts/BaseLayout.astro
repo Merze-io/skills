@@ -10,7 +10,7 @@ interface Props {
 
 const {
   title,
-  description = "Public Agent Skills for Merze — browse and install skills from Merze-io/skills.",
+  description = "Public Agent Skills for Merze — browse, search, and download skills for coding agents.",
   canonicalPath = "/",
 } = Astro.props;
 
@@ -62,11 +62,6 @@ const pageTitle =
             aria-current={canonicalPath === "/about/" ? "page" : undefined}
             >About</a
           >
-          <a
-            href="https://github.com/Merze-io/skills"
-            rel="noopener noreferrer"
-            >GitHub</a
-          >
           <a href="https://merze.ai" rel="noopener noreferrer">merze.ai</a>
         </nav>
       </div>
@@ -78,8 +73,7 @@ const pageTitle =
       <div class="site-footer__inner">
         <p>
           Public Agent Skills for
-          <a href="https://merze.ai">Merze</a>. Source on
-          <a href="https://github.com/Merze-io/skills">GitHub</a>.
+          <a href="https://merze.ai">Merze</a>.
         </p>
         <p>
           <a href="/skills.json">skills.json</a>

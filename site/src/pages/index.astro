@@ -5,26 +5,37 @@ import SkillFilters from "../components/SkillFilters.astro";
 import { getSkillListItems } from "../lib/skills";
 
 const skills = await getSkillListItems();
+const skillCount = skills.length;
 ---
 
 <BaseLayout
   title="Skills"
-  description="Browse and install public Agent Skills from Merze-io/skills."
+  description="Browse and download public Agent Skills from Merze — ready for coding agents."
   canonicalPath="/"
 >
-  <header>
-    <h1 class="page-title--index">Agent Skills</h1>
-    <p class="lede">
-      Auto-generated catalog of every skill in
-      <a href="https://github.com/Merze-io/skills">Merze-io/skills</a>. Search,
-      filter, and copy an install command.
+  <section class="hero" aria-labelledby="hero-heading">
+    <div class="hero__glow" aria-hidden="true"></div>
+    <h1 id="hero-heading" class="hero__title">Merze Skills</h1>
+    <p class="hero__lede">
+      Install-ready agent skills for formation, compliance, and ops. Search the
+      catalog, then download <code>SKILL.md</code> from this site.
     </p>
-  </header>
+    <div class="hero__actions">
+      <a class="btn btn--primary" href="#catalog">Browse catalog</a>
+      <a class="btn btn--secondary" href="/about/">How install works</a>
+    </div>
+    <p class="hero__meta" aria-live="polite">
+      <span class="hero__count">{skillCount}</span>
+      {skillCount === 1 ? " skill" : " skills"} available
+    </p>
+  </section>
 
-  <PagefindSearch />
+  <div class="catalog-toolbar" id="catalog">
+    <PagefindSearch />
+  </div>
 
   <!-- Index itself is not in the Pagefind body (avoid catalog self-hits). -->
-  <div>
+  <div class="catalog">
     <h2 class="sr-only">All skills</h2>
     <SkillFilters skills={skills} />
   </div>

@@ -68,7 +68,7 @@ export default defineConfig({
       rehypeFocusablePre,
     ],
     shikiConfig: {
-      theme: "github-light",
+      theme: "min-light",
       wrap: true,
     },
   },

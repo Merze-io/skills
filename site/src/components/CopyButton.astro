@@ -2,17 +2,19 @@
 import Icon from "./Icon.astro";
 
 interface Props {
-  text: string;
+  text?: string;
+  url?: string;
   label?: string;
 }
 
-const { text, label = "Copy install command" } = Astro.props;
+const { text = "", url, label = "Copy" } = Astro.props;
 ---
 
 <button
   type="button"
-  class="btn btn--primary btn--sm copy-btn"
-  data-copy={text}
+  class="btn btn--secondary btn--sm copy-btn"
+  data-copy={text || undefined}
+  data-copy-url={url || undefined}
   aria-label={label}
 >
   <span class="copy-btn__idle">
@@ -26,15 +28,31 @@ const { text, label = "Copy install command" } = Astro.props;
 </button>
 
 <script>
+  async function resolveCopyValue(btn: HTMLButtonElement): Promise<string> {
+    const direct = btn.dataset.copy;
+    if (direct) return direct;
+    const url = btn.dataset.copyUrl;
+    if (!url) return "";
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("download failed");
+    return await res.text();
+  }
+
   function bindCopyButtons() {
-    document.querySelectorAll<HTMLButtonElement>("[data-copy]").forEach((btn) => {
+    document.querySelectorAll<HTMLButtonElement>("[data-copy], [data-copy-url]").forEach((btn) => {
       if (btn.dataset.bound) return;
       btn.dataset.bound = "1";
       btn.addEventListener("click", async () => {
-        const value = btn.dataset.copy ?? "";
+        let value = "";
         try {
+          value = await resolveCopyValue(btn);
           await navigator.clipboard.writeText(value);
         } catch {
+          try {
+            if (!value) value = await resolveCopyValue(btn);
+          } catch {
+            return;
+          }
           const ta = document.createElement("textarea");
           ta.value = value;
           document.body.appendChild(ta);
