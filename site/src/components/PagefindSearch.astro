@@ -61,23 +61,14 @@
       }
       if (loaded) return;
       loaded = true;
-      // Hide placeholder immediately so it never stacks under Pagefind UI
-      hideTrigger(trigger);
       var pagefindCss = loadCss("/pagefind/pagefind-ui.css");
       var script = document.createElement("script");
       script.src = "/pagefind/pagefind-ui.js";
       script.onload = function () {
         if (!window.PagefindUI) {
           loaded = false;
-          if (trigger) {
-            trigger.hidden = false;
-            trigger.removeAttribute("aria-hidden");
-            trigger.tabIndex = 0;
-          }
           return;
         }
-        host.hidden = false;
-        hideTrigger(trigger);
         new window.PagefindUI({
           element: host,
           showImages: false,
@@ -90,26 +81,25 @@
           },
         });
         var input = host.querySelector(".pagefind-ui__search-input");
-        if (input) {
-          wireLabel(input);
-          if (pagefindCss) {
-            pagefindCss.addEventListener("load", function () {
-              var override = document.getElementById("pagefind-placeholder-override");
-              if (override) document.head.appendChild(override);
-            });
-          }
-          var override = document.getElementById("pagefind-placeholder-override");
-          if (override) document.head.appendChild(override);
-          input.focus();
+        if (!input) {
+          loaded = false;
+          return;
         }
+        host.hidden = false;
+        hideTrigger(trigger);
+        wireLabel(input);
+        if (pagefindCss) {
+          pagefindCss.addEventListener("load", function () {
+            var override = document.getElementById("pagefind-placeholder-override");
+            if (override) document.head.appendChild(override);
+          });
+        }
+        var override = document.getElementById("pagefind-placeholder-override");
+        if (override) document.head.appendChild(override);
+        input.focus();
       };
       script.onerror = function () {
         loaded = false;
-        if (trigger) {
-          trigger.hidden = false;
-          trigger.removeAttribute("aria-hidden");
-          trigger.removeAttribute("tabindex");
-        }
       };
       document.body.appendChild(script);
     }
