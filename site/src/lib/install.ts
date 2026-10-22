@@ -40,7 +40,11 @@ export function powershellZipSnippet(
   return `$d="${destDir}"; $z="$env:TEMP\\${name}.zip"; New-Item -ItemType Directory -Force $d | Out-Null; Invoke-WebRequest ${SITE_ORIGIN}${zipUrl(name)} -OutFile $z -UseBasicParsing; Expand-Archive $z -DestinationPath $d -Force; Remove-Item $z`;
 }
 
-/** Flat catalog zip → wrapped zip for Claude.ai / ChatGPT upload. */
+/**
+ * Flat catalog archive → upload ZIP with top-level `<name>/SKILL.md`
+ * (Claude.ai layout). Catalog `/skill/<name>.zip` stays flat for the CLI;
+ * its entry mtimes remain fixed at 1980-01-01 in the site build.
+ */
 export function wrappedZipBuildSnippet(name: string): string {
   return [
     `name=${name}`,
@@ -119,7 +123,7 @@ export function installSnippets(
     if (method === "powershell") {
       out.push({
         method: "powershell",
-        label: "PowerShell",
+        label: "PowerShell (alternative; not yet verified on Windows)",
         code: powershellZipSnippet(name, userPowershellDest(agent, name)),
         lang: "powershell",
       });
@@ -128,7 +132,7 @@ export function installSnippets(
     if (method === "zip-upload") {
       out.push({
         method: "zip-upload",
-        label: "Wrapped zip for upload",
+        label: "Upload zip (top-level <name>/ folder)",
         code: wrappedZipBuildSnippet(name),
         lang: "bash",
       });
@@ -143,7 +147,7 @@ export function installSnippets(
     if (method === "copy-text") {
       out.push({
         method: "copy-text",
-        label: "Download SKILL.md",
+        label: "Download SKILL.md (Instructions / Knowledge)",
         code: copySkillMdSnippet(name),
         lang: "bash",
       });
@@ -171,13 +175,15 @@ export function buildInstallMarkdown(
   const lines: string[] = [
     "# Install Merze skills",
     "",
-    `> Install from ${SITE_ORIGIN} with the skills CLI, curl/tar, PowerShell, or a zip upload. No Git host required.`,
+    `> Install from ${SITE_ORIGIN} with the skills CLI (primary on every OS, including Windows), curl/tar, or a Claude.ai zip upload. No Git host required.`,
     "",
     "## Quick start",
     "",
     "```bash",
     installCommand(primary),
     "```",
+    "",
+    "On Windows, prefer the same `npx` commands (Node 22.20+). PowerShell one-liners below are an alternative not yet verified on Windows.",
     "",
     "Every skill:",
     "",

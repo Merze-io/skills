@@ -21,15 +21,17 @@ const primary = names[0] ?? "us-llc-state-cost";
 
 <BaseLayout
   title="Install"
-  description="Install Merze agent skills with npx skills, curl/tar, PowerShell, or zip upload — no Git host required."
+  description="Install Merze agent skills with npx skills (primary on Windows too), curl/tar, or Claude.ai zip upload — no Git host required."
   canonicalPath="/install"
 >
   <article class="prose about-page">
     <h1>Install</h1>
     <p>
       Skills are published at <code>https://skills.merze.ai</code>. Prefer the
-      skills CLI when you have Node 22.20+. Otherwise use curl/tar, PowerShell,
-      or a zip upload. Machine-readable twin:
+      skills CLI (<code>npx skills add</code>) on every OS, including Windows,
+      when you have Node 22.20+. Otherwise use curl/tar, or a Claude.ai zip
+      upload. PowerShell one-liners are an alternative not yet verified on
+      Windows. Machine-readable twin:
       <a href="/install.md"><code>/install.md</code></a>.
     </p>
 

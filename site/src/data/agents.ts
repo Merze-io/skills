@@ -119,7 +119,7 @@ export const AGENTS: AgentInstall[] = [
     paths: [],
     methods: ["zip-upload"],
     notes:
-      "Upload under Customize → Skills. Claude.ai requires a ZIP whose top level is a folder named like the skill (skill-name/SKILL.md). The catalog /skill/<name>.zip is flat (SKILL.md at archive root) for the skills CLI — re-wrap before upload, or build a wrapped zip with the snippet below.",
+      "Upload under Customize → Skills. The upload ZIP must have a top-level <name>/ folder that contains SKILL.md (not SKILL.md at the archive root). Catalog /skill/<name>.zip stays flat for the skills CLI — re-wrap with the snippet below before uploading.",
     docsUrl: "https://support.claude.com/en/articles/12512180-use-skills-in-claude",
     verified: "2026-10-22",
   },
@@ -127,10 +127,9 @@ export const AGENTS: AgentInstall[] = [
     id: "chatgpt",
     label: "ChatGPT",
     paths: [],
-    methods: ["zip-upload", "copy-text"],
+    methods: ["copy-text"],
     notes:
-      "Desktop app: Plugins → Skills → Create → Upload from your computer (paid plans with Skills enabled; Free/Go typically cannot upload). You can also paste SKILL.md into custom GPT Instructions or Knowledge. GPT Actions / OpenAPI come later.",
-    docsUrl: "https://help.openai.com/en/articles/20001066-skills-in-chatgpt",
+      "No native skills install is documented here. Paste SKILL.md into a custom GPT’s Instructions or Knowledge. GPT Actions / OpenAPI come later.",
     verified: "2026-10-22",
   },
   {
