@@ -7,7 +7,7 @@
  * - Allowlist ONLY the literal term "github-copilot".
  * - Fail closed: every other hit in any dist file (text, indexes, wasm,
  *   images including PNG zTXt/iTXt, fonts) fails the build — including skill
- *   content under dist/files/.
+ *   content under dist/skill/ raw trees.
  * - Any file starting with gzip magic `1f 8b` is gunzipped before scanning.
  * - Unreadable files fail the build (no warn-and-skip).
  *

@@ -1,12 +1,13 @@
 ---
 import { render } from "astro:content";
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import CopyButton from "../../components/CopyButton.astro";
-import Icon from "../../components/Icon.astro";
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import CopyButton from "../../../components/CopyButton.astro";
+import Icon from "../../../components/Icon.astro";
 import {
   extractWhenToUseFromBody,
   getAllSkills,
   getPublishedSkillFiles,
+  getSkillUpdatedAt,
   getSupportingFiles,
   parseDescription,
   shellSingleQuote,
@@ -14,14 +15,14 @@ import {
   skillSlug,
   supportingFileSlug,
   formatUpdated,
-  getSourceUpdatedAt,
-} from "../../lib/skills";
-import { extractToc } from "../../lib/toc";
+} from "../../../lib/skills";
+import { skillDocPath, skillPath } from "../../../lib/routes";
+import { extractToc } from "../../../lib/toc";
 
 export async function getStaticPaths() {
   const skills = await getAllSkills();
   return skills.map((skill) => ({
-    params: { slug: skillSlug(skill) },
+    params: { name: skillSlug(skill) },
     props: { skill },
   }));
 }
@@ -36,7 +37,8 @@ const whenFromBody =
 const toc = extractToc(body);
 const supporting = await getSupportingFiles(slug);
 const publishedFiles = getPublishedSkillFiles(slug);
-const updated = formatUpdated(getSourceUpdatedAt());
+const updatedAt = getSkillUpdatedAt(slug);
+const updated = formatUpdated(updatedAt);
 const version = skill.data.metadata?.version ?? null;
 const tags = skill.data.metadata?.tags ?? [];
 const category = skill.data.metadata?.category ?? null;
@@ -54,7 +56,7 @@ const installSnippet = publishedFiles
 <BaseLayout
   title={skill.data.name}
   description={parts.summary}
-  canonicalPath={`/${slug}/`}
+  canonicalPath={skillPath(slug)}
 >
   <article data-pagefind-body class="skill-detail">
     <header class="skill-detail__header">
@@ -75,9 +77,9 @@ const installSnippet = publishedFiles
           ))
         }
         {
-          updated && (
+          updated && updatedAt && (
             <span>
-              Updated <time datetime={getSourceUpdatedAt()!}>{updated}</time>
+              Updated <time datetime={updatedAt}>{updated}</time>
             </span>
           )
         }
@@ -160,7 +162,7 @@ const installSnippet = publishedFiles
               const fileSlug = supportingFileSlug(file);
               return (
                 <li>
-                  <a href={`/${slug}/${fileSlug}/`}>
+                  <a href={skillDocPath(slug, fileSlug)}>
                     <Icon name="file" size={14} />
                     {fileSlug}.md
                   </a>

@@ -12,6 +12,7 @@ import {
   discoveryIndexPath,
   rawUrl,
   skillJsonUrl,
+  skillPath,
   tarUrl,
   zipUrl,
 } from "./routes";
@@ -155,7 +156,38 @@ function toUtcIso(value: string | number | Date): string | null {
 
 const FALLBACK_UPDATED_AT = "1980-01-01T00:00:00.000Z";
 
+type SkillDatesManifest = {
+  skills?: Record<string, string>;
+};
+
+let cachedSkillDates: SkillDatesManifest | null | undefined;
+
+function loadSkillDatesManifest(repoRoot: string): SkillDatesManifest | null {
+  if (cachedSkillDates !== undefined) return cachedSkillDates;
+  const p = path.join(repoRoot, "site", "data", "skill-dates.json");
+  try {
+    cachedSkillDates = JSON.parse(fs.readFileSync(p, "utf8")) as SkillDatesManifest;
+  } catch {
+    cachedSkillDates = null;
+  }
+  return cachedSkillDates;
+}
+
+/**
+ * Deterministic per-skill updated_at (UTC ISO).
+ * Order: committed site/data/skill-dates.json → git log on folder →
+ * SOURCE_DATE_EPOCH / SOURCE_DATE / SOURCE_COMMIT_DATE → 1980 fallback.
+ * Coolify builds exclude .git and pass no date args; the committed manifest
+ * is the production source of truth (no Coolify config required).
+ */
 export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
+  const name = path.basename(skillDir);
+  const manifest = loadSkillDatesManifest(repoRoot);
+  const fromManifest = manifest?.skills?.[name];
+  if (fromManifest) {
+    const iso = toUtcIso(fromManifest);
+    if (iso) return iso;
+  }
   try {
     const out = execFileSync(
       "git",
@@ -178,42 +210,8 @@ export function skillUpdatedAt(skillDir: string, repoRoot: string): string {
     const iso = toUtcIso(fromEnv.trim());
     if (iso) return iso;
   }
-  // Coolify may pass SOURCE_COMMIT (git sha) at build time; derive a stable
-  // date from `git show` when .git exists. Without .git this is a no-op.
-  const commit = (process.env.SOURCE_COMMIT || "").trim();
-  if (commit && /^[0-9a-f]{7,40}$/i.test(commit)) {
-    try {
-      const out = execFileSync(
-        "git",
-        ["show", "-s", "--format=%cI", commit],
-        { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] },
-      ).trim();
-      const iso = out ? toUtcIso(out) : null;
-      if (iso) return iso;
-    } catch {
-      // unknown commit / no git
-    }
-  }
-  // HEAD date when git works but the skill path has no history (untracked)
-  try {
-    const out = execFileSync("git", ["log", "-1", "--format=%cI"], {
-      cwd: repoRoot,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    const iso = out ? toUtcIso(out) : null;
-    if (iso) {
-      console.warn(
-        `[distribution] no git date for ${path.basename(skillDir)}; using HEAD ${iso}`,
-      );
-      return iso;
-    }
-  } catch {
-    // no git
-  }
-  // Plan §2: Docker/.dockerignore builds with no date env → fixed epoch
   console.warn(
-    `[distribution] no git date for ${path.basename(skillDir)}; using ${FALLBACK_UPDATED_AT}`,
+    `[distribution] no date for ${name}; using ${FALLBACK_UPDATED_AT}`,
   );
   return FALLBACK_UPDATED_AT;
 }
@@ -332,8 +330,7 @@ function skillIndexEntry(b: SkillBundle) {
     category: b.category,
     tags: b.tags,
     updated_at: b.updatedAt,
-    // HTML catalog page lives at /<name>/ until PR-2 moves it to /skill/<name>
-    url: `${SITE_ORIGIN}/${b.name}/`,
+    url: absolute(skillPath(b.name)),
     skill_md_url: absolute(rawUrl(b.name, "SKILL.md")),
     json_url: absolute(skillJsonUrl(b.name)),
     zip_url: absolute(zipUrl(b.name)),
@@ -361,8 +358,8 @@ export function buildSkillsIndexJson(
     site: {
       name: "Merze Skills",
       url: SITE_ORIGIN,
-      // /install lands in PR-3; /about/ is the live install/contribute page today
-      install_docs: `${SITE_ORIGIN}/about/`,
+      // /install lands in PR-3; /about is the live install/contribute page today
+      install_docs: `${SITE_ORIGIN}/about`,
       discovery: absolute(discoveryIndexPath()),
       all_zip: absolute(allZipUrl()),
       all_tar_gz: absolute(allTarUrl()),
@@ -438,7 +435,7 @@ export function buildLlmsTxt(bundles: SkillBundle[]): string {
     "",
     "## Optional",
     "",
-    `- [About](${SITE_ORIGIN}/about/)`,
+    `- [About](${SITE_ORIGIN}/about)`,
     "",
   );
   return lines.join("\n");

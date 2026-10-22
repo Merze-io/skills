@@ -3,14 +3,20 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "astro dev",
-    "build": "rm -rf node_modules/.astro .astro && astro build && pagefind --site dist && node scripts/copy-skill-files.mjs && node scripts/scrub-github.mjs",
+    "build": "rm -rf node_modules/.astro .astro && astro build && pagefind --site dist && node scripts/write-nginx-redirects.mjs && node scripts/scrub-github.mjs",
     "preview": "astro preview",
     "astro": "astro",
     "axe:viewports": "node scripts/axe-viewports.mjs",
     "axe:self-test": "node scripts/axe-viewports.mjs --self-test",
-    "verify-dist": "node scripts/verify-dist.mjs"
+    "verify-dist": "node scripts/verify-dist.mjs",
+    "generate-skill-dates": "node scripts/generate-skill-dates.mjs",
+    "check-skill-dates": "node scripts/generate-skill-dates.mjs --check",
+    "check-redirect-cases": "node scripts/write-nginx-redirects.mjs --check"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.3.1",

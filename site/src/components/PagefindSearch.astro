@@ -66,6 +66,21 @@
           showImages: false,
           showSubResults: true,
           resetStyles: false,
+          // Directory-format pages index as /skill/x/; strip slash for 200s.
+          processResult: function (result) {
+            if (result && typeof result.url === "string" && result.url.length > 1) {
+              result.url = result.url.replace(/\/$/, "");
+            }
+            if (result && Array.isArray(result.sub_results)) {
+              for (var i = 0; i < result.sub_results.length; i++) {
+                var sub = result.sub_results[i];
+                if (sub && typeof sub.url === "string" && sub.url.length > 1) {
+                  sub.url = sub.url.replace(/\/$/, "");
+                }
+              }
+            }
+            return result;
+          },
           translations: {
             placeholder: "Search skills…",
             zero_results:

@@ -23,6 +23,12 @@ jobs:
         working-directory: site
         run: npm ci
 
+      - name: Check skill-dates.json and redirect-cases.tsv are fresh
+        working-directory: site
+        run: |
+          npm run check-skill-dates
+          npm run check-redirect-cases
+
       - name: Build
         working-directory: site
         run: npm run build
@@ -35,20 +41,25 @@ jobs:
           test -f dist/robots.txt
           test -f dist/404.html
           test -d dist/pagefind
-          test -f dist/us-llc-state-cost/index.html
-          test -f dist/us-llc-state-cost/states/index.html
+          test -f dist/skill/us-llc-state-cost/index.html
+          test -f dist/skill/us-llc-state-cost/states/index.html
+          test -f dist/about/index.html
           test -f dist/logo.png
+          test -f dist-nginx/skills-redirects.conf
           grep -q 'ok' dist/healthz
           grep -q 'us-llc-state-cost' dist/skills.json
-          grep -q '/us-llc-state-cost/states/' dist/us-llc-state-cost/index.html
+          grep -q '/skill/us-llc-state-cost/states' dist/skill/us-llc-state-cost/index.html
+          # Canonical tags must not have a trailing slash (except site root)
+          ! grep -E 'rel="canonical" href="https://skills.merze.ai/.+/"' dist/skill/us-llc-state-cost/index.html
+          grep -q 'rel="canonical" href="https://skills.merze.ai/skill/us-llc-state-cost"' dist/skill/us-llc-state-cost/index.html
           # TOC anchors must match heading ids (no user-content- clobber)
-          ! grep -q 'id="user-content-' dist/us-llc-state-cost/index.html
-          grep -q 'class="heading-anchor"' dist/us-llc-state-cost/index.html
-          grep -q 'id="skill-version-mandatory"' dist/us-llc-state-cost/index.html
-          grep -q 'href="#skill-version-mandatory"' dist/us-llc-state-cost/index.html
-          test -f dist/files/us-llc-state-cost/SKILL.md
-          test -f dist/files/us-llc-state-cost/states.md
-          # Distribution artifacts (PR-1 / MER-1098)
+          ! grep -q 'id="user-content-' dist/skill/us-llc-state-cost/index.html
+          grep -q 'class="heading-anchor"' dist/skill/us-llc-state-cost/index.html
+          grep -q 'id="skill-version-mandatory"' dist/skill/us-llc-state-cost/index.html
+          grep -q 'href="#skill-version-mandatory"' dist/skill/us-llc-state-cost/index.html
+          # /files/ is redirect-only (no published tree)
+          test ! -d dist/files
+          # Distribution artifacts
           test -f dist/skill/us-llc-state-cost/SKILL.md
           test -f dist/skill/us-llc-state-cost/states.md
           test -f dist/skill/us-llc-state-cost.zip
@@ -63,6 +74,21 @@ jobs:
           ! grep -q 'generatedAt' dist/skills.json
           grep -q '"schema_version": 1' dist/skills.json
           grep -q '"type": "archive"' dist/.well-known/agent-skills/index.json
+          grep -q '"url": "https://skills.merze.ai/skill/us-llc-state-cost"' dist/skills.json
+          # Sitemap locs must not end with / (except origin /)
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, sys
+          bad = []
+          for p in Path("dist").glob("sitemap*.xml"):
+              for loc in re.findall(r"<loc>(.*?)</loc>", p.read_text()):
+                  if loc.endswith("/") and loc not in ("https://skills.merze.ai/", "http://skills.merze.ai/"):
+                      bad.append(loc)
+          if bad:
+              print("Sitemap locs with trailing slash:", *bad, sep="\n  ")
+              sys.exit(1)
+          print("Sitemap trailing-slash OK")
+          PY
 
       - name: Fail if dist contains disallowed github mentions
         working-directory: site
@@ -230,9 +256,9 @@ jobs:
           printf '{"ok":true}\n' > "$NEST/sub/deep/data.json"
           printf 'a,b\n1,2\n' > "$NEST/sub/deep/table.csv"
           npm run build
-          test -f dist/files/zz-nested-install/SKILL.md
-          test -f dist/files/zz-nested-install/sub/notes.txt
-          test -f dist/files/zz-nested-install/sub/deep/data.json
+          test -f dist/skill/zz-nested-install/SKILL.md
+          test -f dist/skill/zz-nested-install/sub/notes.txt
+          test -f dist/skill/zz-nested-install/sub/deep/data.json
           # Parse install UI, assert SKILL.md first + --create-dirs, then replay
           # the generated curl command against a local server (7/7 files).
           python3 - <<'PY'
@@ -245,11 +271,11 @@ jobs:
           import threading
           from functools import partial
 
-          page = Path("dist/zz-nested-install/index.html").read_text()
+          page = Path("dist/skill/zz-nested-install/index.html").read_text()
           m = re.search(r'file-list--install">(.*?)</ul>', page, re.S)
           assert m, "missing install list"
-          hrefs = re.findall(r'href="(/files/zz-nested-install/[^"]+)"\s+download', m.group(1))
-          names = [h.split("/files/zz-nested-install/", 1)[1] for h in hrefs]
+          hrefs = re.findall(r'href="(/skill/zz-nested-install/[^"]+)"\s+download', m.group(1))
+          names = [h.split("/skill/zz-nested-install/", 1)[1] for h in hrefs]
           assert names, "no install files parsed"
           assert names[0] == "SKILL.md", names
           assert "sub/notes.txt" in names and "sub/deep/data.json" in names, names
@@ -281,7 +307,7 @@ jobs:
                        for p in (out / "zz-nested-install").rglob("*") if p.is_file())
           assert len(got) == 7, got
           for name in names:
-              src = Path("dist/files/zz-nested-install") / name
+              src = Path("dist/skill/zz-nested-install") / name
               dst = out / "zz-nested-install" / name
               assert src.read_bytes() == dst.read_bytes(), name
           print("Nested install 7/7 OK:", got)
@@ -402,21 +428,26 @@ jobs:
           check() {
             local url="$1"
             local file
-            if [[ "$url" == */ ]]; then
-              file="dist${url}index.html"
+            local r="${url#/}"
+            if [[ -z "$r" ]]; then
+              file="dist/index.html"
+            elif [[ -f "dist/$r" ]]; then
+              file="dist/$r"
+            elif [[ -f "dist/$r/index.html" ]]; then
+              file="dist/$r/index.html"
+            elif [[ -f "dist/${r}.html" ]]; then
+              file="dist/${r}.html"
             else
-              file="dist${url}"
-            fi
-            if [[ ! -f "$file" ]]; then
-              echo "Missing: $url -> $file"
+              echo "Missing: $url"
               return 1
             fi
-            echo "OK $url"
+            echo "OK $url -> $file"
           }
           check /
-          check /about/
-          check /us-llc-state-cost/
-          check /us-llc-state-cost/states/
+          check /about
+          check /skill/us-llc-state-cost
+          check /skill/us-llc-state-cost/states
+          check /skill/us-llc-state-cost/SKILL.md
           check /skills.json
           check /healthz
           check /404.html
@@ -432,7 +463,12 @@ jobs:
           for html in dist.rglob("*.html"):
               text = html.read_text(encoding="utf-8", errors="ignore")
               rel = html.relative_to(dist).as_posix()
-              page = "/" + rel.replace("index.html", "")
+              if rel.endswith("/index.html"):
+                  page = "/" + rel[: -len("/index.html")]
+              elif rel == "index.html":
+                  page = "/"
+              else:
+                  page = "/" + rel
               for m in re.finditer(r'''(?:href|src)=["']([^"'#?]*)(#[^"']+)?["']''', text):
                   path, frag = m.group(1), m.group(2)
                   if path.startswith("http") or path.startswith("mailto:") or path.startswith("//"):
@@ -440,34 +476,27 @@ jobs:
                   if path.startswith("/"):
                       hrefs.add(path)
                   if frag and (not path or path.startswith("/") or path == ""):
-                      # in-page or root-relative with fragment
                       target_page = page if not path else path
                       fragments.append((rel, target_page, frag[1:]))
+
+          def resolve(href: str) -> Path | None:
+              r = href.lstrip("/")
+              for p in (dist / r, dist / r / "index.html", dist / f"{r}.html"):
+                  if p.exists():
+                      return p
+              return None
 
           missing = []
           for href in sorted(hrefs):
               if href.startswith("//"):
                   continue
-              r = href.lstrip("/")
-              candidates = [dist / r, dist / r / "index.html", dist / f"{r}.html"]
-              if any(p.exists() for p in candidates):
-                  continue
-              if (dist / r.rstrip("/")).is_dir() and (dist / r.rstrip("/") / "index.html").exists():
-                  continue
-              missing.append(href)
+              if resolve(href) is None:
+                  missing.append(href)
 
           frag_missing = []
           for rel, target_page, frag_id in fragments:
-              if target_page.endswith("/"):
-                  target_file = dist / target_page.lstrip("/") / "index.html"
-              elif target_page.endswith(".html"):
-                  target_file = dist / target_page.lstrip("/")
-              else:
-                  target_file = dist / target_page.lstrip("/") / "index.html"
-                  if not target_file.exists():
-                      target_file = dist / (target_page.lstrip("/") + ".html")
-              if not target_file.exists():
-                  # skip external-ish
+              target_file = resolve(target_page)
+              if target_file is None:
                   continue
               html = target_file.read_text(encoding="utf-8", errors="ignore")
               if f'id="{frag_id}"' not in html and f"id='{frag_id}'" not in html:
@@ -579,7 +608,7 @@ jobs:
         run: |
           set -euo pipefail
           # Coolify-like: .dockerignore excludes .git and no date build-args.
-          # Must succeed with the 1980-01-01 updated_at fallback (plan §2).
+          # updated_at must come from committed skill-dates.json (not 1980).
           docker build -f site/Dockerfile -t skills-merze-ai:ci-nogit .
           cid_nogit=$(docker run -d -p 18081:8080 skills-merze-ai:ci-nogit)
           for i in $(seq 1 30); do
@@ -590,23 +619,30 @@ jobs:
           curl -fsS http://127.0.0.1:18081/skills.json -o /tmp/skills-nogit.json
           python3 - <<'PY'
           import json
+          from pathlib import Path
+          manifest = json.loads(Path("site/data/skill-dates.json").read_text())
           d = json.load(open("/tmp/skills-nogit.json"))
           assert d["skills"], "no skills"
           for s in d["skills"]:
-              assert s["updated_at"].endswith("Z"), s["updated_at"]
-              # Without git / SOURCE_DATE*, fallback is the plan §2 epoch
-              assert s["updated_at"] == "1980-01-01T00:00:00.000Z", s["updated_at"]
-          print("no-git Docker build OK; updated_at fallback", d["skills"][0]["updated_at"])
+              u = s["updated_at"]
+              assert u.endswith("Z"), u
+              assert not u.startswith("1980-"), u
+              expected = manifest["skills"][s["name"]]
+              # Normalize both to ms ISO
+              from datetime import datetime, timezone
+              def norm(x):
+                  return datetime.fromisoformat(x.replace("Z", "+00:00")).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+              assert norm(u) == norm(expected), (s["name"], u, expected)
+          print("no-git Docker build OK; updated_at from skill-dates.json:", d["skills"][0]["updated_at"])
           PY
+          # Quick /skill/ + /files/ 301 proof on the no-git image too
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18081/skill/us-llc-state-cost)
+          test "$code" = "200"
+          loc=$(curl -sI http://127.0.0.1:18081/files/us-llc-state-cost/ | tr -d '\r' | awk -F': ' 'tolower($1)=="location"{print $2}')
+          test "$loc" = "/skill/us-llc-state-cost/SKILL.md"
           docker rm -f "$cid_nogit" >/dev/null
 
-          # Smoke with explicit dates (prod can set SOURCE_DATE_EPOCH as a Coolify build arg)
-          SOURCE_DATE="$(git log -1 --format=%cI)"
-          SOURCE_DATE_EPOCH="$(git log -1 --format=%ct)"
-          docker build -f site/Dockerfile \
-            --build-arg "SOURCE_DATE=${SOURCE_DATE}" \
-            --build-arg "SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}" \
-            -t skills-merze-ai:ci .
+          docker build -f site/Dockerfile -t skills-merze-ai:ci .
           cid=$(docker run -d -p 18080:8080 skills-merze-ai:ci)
           trap 'docker rm -f "$cid" >/dev/null' EXIT
           for i in $(seq 1 30); do
@@ -614,43 +650,75 @@ jobs:
             sleep 0.5
           done
           curl -sf http://127.0.0.1:18080/healthz | grep -q ok
+          ORIGIN=http://127.0.0.1:18080
+
           # 404 status + branded page
-          code=$(curl -s -o /tmp/404.html -w '%{http_code}' http://127.0.0.1:18080/no-such-page)
+          code=$(curl -s -o /tmp/404.html -w '%{http_code}' "$ORIGIN/no-such-page")
           test "$code" = "404"
           grep -qi 'not found' /tmp/404.html
           # Security headers present on HTML and assets
-          curl -sI http://127.0.0.1:18080/ | grep -qi 'content-security-policy'
-          curl -sI http://127.0.0.1:18080/ | grep -qi 'x-content-type-options: nosniff'
-          curl -sI http://127.0.0.1:18080/ | grep -qi 'wasm-unsafe-eval'
+          curl -sI "$ORIGIN/" | grep -qi 'content-security-policy'
+          curl -sI "$ORIGIN/" | grep -qi 'x-content-type-options: nosniff'
+          curl -sI "$ORIGIN/" | grep -qi 'wasm-unsafe-eval'
           # Real hashed _astro asset: 200 + CSP + immutable Cache-Control
           asset=$(docker exec "$cid" sh -c 'ls /usr/share/nginx/html/_astro | head -1')
           test -n "$asset"
-          asset_headers=$(curl -sI "http://127.0.0.1:18080/_astro/$asset")
+          asset_headers=$(curl -sI "$ORIGIN/_astro/$asset")
           echo "$asset_headers" | head -1 | grep -q '200'
           echo "$asset_headers" | grep -qi 'content-security-policy'
           echo "$asset_headers" | grep -qi 'wasm-unsafe-eval'
           echo "$asset_headers" | grep -qi 'immutable'
-          # Slashless redirect must stay relative (no :8080 host port)
-          loc=$(curl -sI http://127.0.0.1:18080/us-llc-state-cost | tr -d '\r' | awk -F': ' 'tolower($1)=="location"{print $2}')
-          echo "Location: $loc"
-          echo "$loc" | grep -qv ':8080'
-          echo "$loc" | grep -q 'us-llc-state-cost/'
-          # /files/ locked-down headers + plaintext markdown
-          files_headers=$(curl -sI http://127.0.0.1:18080/files/us-llc-state-cost/SKILL.md)
-          echo "$files_headers" | head -1 | grep -q '200'
-          echo "$files_headers" | grep -qi 'content-type: text/plain'
-          echo "$files_headers" | grep -qi 'charset=utf-8'
-          echo "$files_headers" | grep -qi 'x-content-type-options: nosniff'
-          echo "$files_headers" | grep -qi "content-security-policy:.*default-src 'none'"
-          echo "$files_headers" | grep -qi 'sandbox'
-          # Directory URL under /files/ must 404 (no listing / bare 403)
-          files_dir_code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/files/us-llc-state-cost/)
-          test "$files_dir_code" = "404"
-          # Supporting file also served
-          curl -sf http://127.0.0.1:18080/files/us-llc-state-cost/states.md | head -1 | grep -q .
 
-          # --- PR-1 distribution checks ---
-          ORIGIN=http://127.0.0.1:18080
+          # Redirect matrix (relative Location, one hop, query preserved)
+          python3 - <<'PY'
+          import subprocess, sys
+          from pathlib import Path
+          origin = "http://127.0.0.1:18080"
+          rows = []
+          for line in Path("site/scripts/redirect-cases.tsv").read_text().splitlines():
+              if not line.strip() or line.startswith("#"):
+                  continue
+              parts = line.split("\t")
+              assert len(parts) == 3, line
+              rows.append(parts)
+          failed = []
+          for req, want_status, want_loc in rows:
+              # curl --max-redirs 0 still follows? use -sI and parse
+              out = subprocess.check_output(
+                  ["curl", "-sI", "--max-redirs", "0", origin + req],
+                  text=True,
+              )
+              lines = out.replace("\r", "").splitlines()
+              status = lines[0].split()[1] if lines else "?"
+              loc = ""
+              for ln in lines[1:]:
+                  if ln.lower().startswith("location:"):
+                      loc = ln.split(":", 1)[1].strip()
+                      break
+              if status != want_status or loc != want_loc:
+                  failed.append((req, want_status, want_loc, status, loc))
+                  continue
+              if "://" in loc or ":8080" in loc or "github" in loc.lower():
+                  failed.append((req, "relative Location", want_loc, status, loc))
+                  continue
+              if want_status == "301" and want_loc:
+                  # one hop: following redirect yields non-3xx
+                  followed = subprocess.check_output(
+                      ["curl", "-sI", "-L", "--max-redirs", "2", origin + req],
+                      text=True,
+                  ).replace("\r", "")
+                  final = followed.splitlines()[0].split()[1]
+                  if final.startswith("3"):
+                      failed.append((req, "one-hop", final, status, loc))
+          if failed:
+              print("Redirect failures:")
+              for f in failed:
+                  print(" ", f)
+              sys.exit(1)
+          print(f"Redirect cases OK ({len(rows)} rows)")
+          PY
+
+          # --- distribution checks ---
           hdr=$(curl -sI "$ORIGIN/skill/us-llc-state-cost/SKILL.md")
           echo "$hdr" | head -1 | grep -q '200'
           echo "$hdr" | grep -qi 'content-type: text/markdown'
@@ -664,6 +732,11 @@ jobs:
           cmp -s /tmp/served-SKILL.md us-llc-state-cost/SKILL.md
           curl -fsS "$ORIGIN/skill/us-llc-state-cost/states.md" -o /tmp/served-states.md
           cmp -s /tmp/served-states.md us-llc-state-cost/states.md
+
+          # HTML skill page 200 (no trailing slash)
+          curl -sf "$ORIGIN/skill/us-llc-state-cost" | grep -qi 'us-llc-state-cost'
+          curl -sf "$ORIGIN/skill/us-llc-state-cost/states" | grep -qi 'states'
+          curl -sf "$ORIGIN/about" | grep -qi 'About'
 
           curl -fsS "$ORIGIN/skill/us-llc-state-cost.zip" -o /tmp/skill.zip
           rm -rf /tmp/zip-out && mkdir /tmp/zip-out
@@ -693,6 +766,9 @@ jobs:
           assert d["$schema"].endswith("discovery/0.2.0/schema.json")
           assert d["skills"][0]["type"] == "archive"
           assert d["skills"][0]["name"] == "us-llc-state-cost"
+          # zip digest only (Node pinned); never publish tar.gz digests here
+          assert d["skills"][0]["url"].endswith(".zip")
+          assert "digest" in d["skills"][0]
           PY
 
           TMPHOME=$(mktemp -d)
@@ -752,7 +828,7 @@ jobs:
           echo "$lock" > /tmp/skills-lock-path.txt
           sha256sum /tmp/skill.zip | awk '{print $1}' > /tmp/skill-zip.sha256
           python3 - <<'PY'
-          import json, pathlib, re
+          import json, pathlib
           lock_path = pathlib.Path(pathlib.Path("/tmp/skills-lock-path.txt").read_text().strip())
           zip_sha = pathlib.Path("/tmp/skill-zip.sha256").read_text().strip()
           lock = json.loads(lock_path.read_text())
@@ -776,7 +852,7 @@ jobs:
             cd "$TMPPROJ"
             HOME="$TMPHOME" npx -y skills@1.7.4 check 2>&1 | tee /tmp/skills-check.out
           )
-          # Exit 0 already required by set -e; also require "up to date" signal
+          # Exit 0 already required by set -e; also require real status text
           if ! grep -Eiq 'up to date|no updates|already up.to.date|Checking for skill updates' /tmp/skills-check.out; then
             echo "skills check output missing expected status:"
             cat /tmp/skills-check.out

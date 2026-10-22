@@ -100,7 +100,7 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
         data-supporting={skill.hasSupporting ? "yes" : "no"}
         data-updated={skill.updatedAt ?? ""}
       >
-        <a class="skill-card__link" href={`/${skill.slug}/`}>
+        <a class="skill-card__link" href={`/skill/${skill.slug}`}>
           <div class="skill-card__top">
             <h3 class="skill-card__name">{skill.name}</h3>
             {skill.version && <span class="badge">v{skill.version}</span>}

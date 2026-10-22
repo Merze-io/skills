@@ -23,11 +23,11 @@ const VIEWPORTS = [
 ];
 const PAGES = [
   "/",
-  "/us-llc-state-cost/",
-  "/us-llc-state-cost/states/",
-  "/about/",
+  "/skill/us-llc-state-cost",
+  "/skill/us-llc-state-cost/states",
+  "/about",
   "/404.html",
-  "/no-such-page/",
+  "/no-such-page",
 ];
 
 const MIME = {
