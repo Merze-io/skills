@@ -59,6 +59,7 @@ Single scanner: `scripts/scrub-github.mjs` (also re-run in CI).
 - Unreadable files fail the build (no warn-and-skip)
 - Allowlist only: the literal term `github-copilot`
 - Any other hit — including skill content under `dist/files/` — fails the build
+- Known gap (accepted for static assets): only one gzip layer is peeled, and deflate/brotli payloads inside fonts (e.g. `.woff2`) are not opened — double-gzip or font-compressed `github` can still slip through
 
 ## Content collection vs `/files/`
 

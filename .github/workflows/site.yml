@@ -288,18 +288,21 @@ jobs:
           PY
           rm -rf "$NEST" /tmp/zz-nested-install-out /tmp/zz-nested-install.sh
 
-          # Github gate self-test: raw png append + gunzipped wasm injection
+          # Github gate self-test: raw png, wasm gzip, PNG zTXt/iTXt, unreadable
           npm run build
           python3 - <<'PY'
           import gzip
+          import os
           import shutil
+          import struct
           import subprocess
           import tempfile
+          import zlib
           from pathlib import Path
 
           dist = Path("dist")
 
-          def run_scrub_on_copy(mutate, label):
+          def run_scrub_on_copy(mutate, label, expect_substr=None):
               with tempfile.TemporaryDirectory() as td:
                   poisoned = Path(td) / "dist"
                   shutil.copytree(dist, poisoned)
@@ -323,8 +326,29 @@ jobs:
                       print(r.stdout)
                       print(r.stderr)
                       raise SystemExit(f"Expected gate fail: {label}")
+                  out = (r.stderr or r.stdout or "")
+                  if expect_substr and expect_substr not in out:
+                      raise SystemExit(
+                          f"Expected gate output containing {expect_substr!r} for {label}:\n{out}"
+                      )
                   print(f"OK gate fail: {label}")
-                  print((r.stderr or r.stdout).strip().splitlines()[-3:])
+                  print(out.strip().splitlines()[-3:])
+
+          def png_chunk(chunk_type: bytes, data: bytes) -> bytes:
+              return (
+                  struct.pack(">I", len(data))
+                  + chunk_type
+                  + data
+                  + struct.pack(">I", zlib.crc32(chunk_type + data) & 0xffffffff)
+              )
+
+          def append_png_chunk(path: Path, chunk_type: bytes, data: bytes) -> None:
+              raw = path.read_bytes()
+              # Insert before IEND
+              iend = raw.rfind(b"IEND")
+              assert iend >= 8, path
+              insert_at = iend - 4  # length field of IEND
+              path.write_bytes(raw[:insert_at] + png_chunk(chunk_type, data) + raw[insert_at:])
 
           def inject_logo(root: Path):
               with (root / "logo.png").open("ab") as f:
@@ -339,8 +363,33 @@ jobs:
                   body = raw
               wasm.write_bytes(gzip.compress(body + b"\0github\0"))
 
+          def inject_ztxt(root: Path):
+              # keyword\\0 method0 + zlib(github)
+              data = b"Comment\x00\x00" + zlib.compress(b"github")
+              append_png_chunk(root / "logo.png", b"zTXt", data)
+
+          def inject_itxt(root: Path):
+              # keyword\\0 compFlag0 method0 lang\\0 translated\\0 text
+              data = b"Comment\x00\x00\x00\x00\x00github"
+              append_png_chunk(root / "logo.png", b"iTXt", data)
+
+          def inject_corrupt_gzip(root: Path):
+              # Valid gzip magic but truncated/corrupt payload
+              (root / "pagefind" / "poison.pf_meta").write_bytes(
+                  b"\x1f\x8b\x08\x00" + b"\x00" * 8 + b"not-valid-gzip"
+              )
+
+          def inject_unreadable(root: Path):
+              p = root / "pagefind" / "locked.bin"
+              p.write_bytes(b"github")
+              os.chmod(p, 0o000)
+
           run_scrub_on_copy(inject_logo, "logo.png")
           run_scrub_on_copy(inject_wasm, "gunzipped wasm.en.pagefind")
+          run_scrub_on_copy(inject_ztxt, "png zTXt", "png text chunk")
+          run_scrub_on_copy(inject_itxt, "png iTXt", "png text chunk")
+          run_scrub_on_copy(inject_corrupt_gzip, "corrupt gzip", "gzip unreadable")
+          run_scrub_on_copy(inject_unreadable, "chmod 000", "unreadable:")
           PY
 
           # Restore clean dist for later steps
