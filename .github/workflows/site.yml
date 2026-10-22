@@ -49,14 +49,17 @@ jobs:
           grep -q 'ok' dist/healthz
           grep -q 'us-llc-state-cost' dist/skills.json
           grep -q '/skill/us-llc-state-cost/states' dist/skill/us-llc-state-cost/index.html
-          # Canonical tags must not have a trailing slash (except site root)
-          ! grep -E 'rel="canonical" href="https://skills.merze.ai/.+/"' dist/skill/us-llc-state-cost/index.html
+          # Canonical tags must not have a trailing slash (except site root).
+          # Bound the match to the href quotes — HTML is often one long line, so
+          # a greedy `.+/` can false-positive across later path segments.
+          ! grep -E 'rel="canonical" href="https://skills.merze.ai/[^"]+/"' dist/skill/us-llc-state-cost/index.html
           grep -q 'rel="canonical" href="https://skills.merze.ai/skill/us-llc-state-cost"' dist/skill/us-llc-state-cost/index.html
-          # TOC anchors must match heading ids (no user-content- clobber)
+          # TOC anchors must match heading ids (no user-content- clobber).
+          # Heading text is "⛔ Skill version" → github-slugger id "-skill-version".
           ! grep -q 'id="user-content-' dist/skill/us-llc-state-cost/index.html
           grep -q 'class="heading-anchor"' dist/skill/us-llc-state-cost/index.html
-          grep -q 'id="skill-version-mandatory"' dist/skill/us-llc-state-cost/index.html
-          grep -q 'href="#skill-version-mandatory"' dist/skill/us-llc-state-cost/index.html
+          grep -q 'id="-skill-version"' dist/skill/us-llc-state-cost/index.html
+          grep -q 'href="#-skill-version"' dist/skill/us-llc-state-cost/index.html
           # /files/ is redirect-only (no published tree)
           test ! -d dist/files
           # Distribution artifacts
