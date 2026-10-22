@@ -282,7 +282,8 @@ for (const f of ["llms.txt", "llms-full.txt"]) {
   if (!fs.existsSync(path.join(distDir, f))) fail(`missing ${f}`);
 }
 
-// Every published skill file under dist/skill/<name>/ must be allowlisted
+// Every published skill file under dist/skill/<name>/ must be allowlisted.
+// Astro also writes rendered HTML pages (index.html) beside raw skill files.
 for (const name of skills) {
   const skillDist = path.join(distDir, "skill", name);
   function walkDist(dir, base = "") {
@@ -295,9 +296,11 @@ for (const name of skills) {
       }
       if (ent.isDirectory()) walkDist(abs, rel);
       else if (ent.isFile()) {
+        // Rendered catalog pages live next to raw files (PR-2)
+        if (ent.name === "index.html") continue;
         assertSafeSkillRelativePath(rel);
-        const ext = path.extname(rel).toLowerCase();
         if (!/\.(md|txt|json|ya?ml|csv)$/i.test(rel)) {
+          const ext = path.extname(rel).toLowerCase();
           fail(`disallowed extension in dist: skill/${name}/${rel} (${ext})`);
         }
       }

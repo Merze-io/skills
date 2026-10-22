@@ -8,6 +8,8 @@ demote-log.txt
 rewrite-log.txt
 demote-loaded.txt
 
+dist-nginx/
+
 # Impeccable session artifacts (comps, plates, question state)
 .impeccable/mocks/
 .impeccable/build/

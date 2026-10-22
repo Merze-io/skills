@@ -1,0 +1,29 @@
+# request	status	location (empty = no Location; 200/404)
+/	200	
+/about	200	
+/about/	301	/about
+/about/index.html	301	/about
+/about/?x=1	301	/about?x=1
+/healthz	200	
+/skills.json	200	
+/us-llc-state-cost	301	/skill/us-llc-state-cost
+/us-llc-state-cost/	301	/skill/us-llc-state-cost
+/us-llc-state-cost/index.html	301	/skill/us-llc-state-cost
+/us-llc-state-cost?x=1	301	/skill/us-llc-state-cost?x=1
+/skill/us-llc-state-cost	200	
+/skill/us-llc-state-cost/	301	/skill/us-llc-state-cost
+/skill/us-llc-state-cost/SKILL.md	200	
+/skill/us-llc-state-cost/SKILL.MD	404	
+/skill/Us-Llc-State-Cost	301	/skill/us-llc-state-cost
+/skill/Us-Llc-State-Cost/states	301	/skill/us-llc-state-cost/states
+/files/us-llc-state-cost/	301	/skill/us-llc-state-cost/SKILL.md
+/files/us-llc-state-cost	301	/skill/us-llc-state-cost/SKILL.md
+/files/us-llc-state-cost/SKILL.md	301	/skill/us-llc-state-cost/SKILL.md
+/files/us-llc-state-cost/states.md	301	/skill/us-llc-state-cost/states.md
+/files/us-llc-state-cost/states.md?x=1	301	/skill/us-llc-state-cost/states.md?x=1
+/us-llc-state-cost/states	301	/skill/us-llc-state-cost/states
+/us-llc-state-cost/states/	301	/skill/us-llc-state-cost/states
+/us-llc-state-cost/states/index.html	301	/skill/us-llc-state-cost/states
+/skill/us-llc-state-cost/states	200	
+/skill/us-llc-state-cost/states/	301	/skill/us-llc-state-cost/states
+/skill/us-llc-state-cost/states.md	200	

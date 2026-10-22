@@ -603,7 +603,7 @@ h3 {
 .prose {
   width: 100%;
   max-width: var(--measure);
-  overflow-x: auto;
+  /* Overflow lives on pre / .table-wrap (focusable); avoid a non-keyboard scroll region. */
   overflow-wrap: anywhere;
   word-break: break-word;
 }

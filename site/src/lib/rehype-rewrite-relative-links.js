@@ -3,8 +3,8 @@ import path from "node:path";
 
 /**
  * Rewrite relative links/images in skill markdown.
- * Sibling .md → rendered sub-page; cross-skill ../ paths → other skill URLs;
- * other relative files → same-origin /files/<skill>/… downloads.
+ * Sibling .md → rendered /skill/<name>/<doc>; cross-skill ../ paths → other
+ * skill URLs; other relative files → same-origin /skill/<name>/… raw downloads.
  */
 export function rehypeRewriteRelativeLinks() {
   return (tree, file) => {
@@ -51,15 +51,15 @@ function resolveSkillSlug(file) {
 
 function toSitePath(skill, file, hashSuffix) {
   if (!file || file.toLowerCase() === "skill.md" || file.toLowerCase() === "skill") {
-    return `/${skill}/${hashSuffix}`;
+    return `/skill/${skill}${hashSuffix}`;
   }
   const fileSlug = file.replace(/\.md$/i, "");
-  return `/${skill}/${fileSlug}/${hashSuffix}`;
+  return `/skill/${skill}/${fileSlug}${hashSuffix}`;
 }
 
 function fileDownloadPath(skill, filePath) {
   const cleaned = String(filePath).replace(/^\/+/, "");
-  return `/files/${skill}/${cleaned}`;
+  return `/skill/${skill}/${cleaned}`;
 }
 
 function rewriteHref(href, slug) {
@@ -87,7 +87,7 @@ function rewriteHref(href, slug) {
 
   const parts = resolved.split("/").filter(Boolean);
   if (parts.length === 0) {
-    return `/${slug}/${hashSuffix}`;
+    return `/skill/${slug}${hashSuffix}`;
   }
 
   const targetSkill = parts[0];
@@ -105,7 +105,7 @@ function rewriteHref(href, slug) {
     return `${fileDownloadPath(targetSkill, rest)}${hashSuffix}`;
   }
 
-  return `/${targetSkill}/${hashSuffix}`;
+  return `/skill/${targetSkill}${hashSuffix}`;
 }
 
 function rewriteImgSrc(src, slug) {

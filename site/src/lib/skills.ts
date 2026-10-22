@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCollection, type CollectionEntry } from "astro:content";
@@ -31,7 +32,7 @@ function isSafeCollectionEntry(
   );
 }
 
-/** Encode each path segment for /files/ URLs (and install curl args). */
+/** Encode each path segment for /skill/<name>/… URLs (and install curl args). */
 export function encodeSkillFilePath(filePath: string): string {
   return filePath
     .replace(/^\/+/, "")
@@ -45,9 +46,40 @@ export function shellSingleQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
-/** Allowlisted, non-symlink files for a skill (install + /files/ parity). */
+/** Allowlisted, non-symlink files for a skill (install + /skill/ raw parity). */
 export function getPublishedSkillFiles(slug: string): SkillSourceFile[] {
   return listSafeSkillFiles(skillDirForSlug(slug));
+}
+
+type SkillDatesManifest = {
+  skills?: Record<string, string>;
+};
+
+let cachedSkillDates: SkillDatesManifest | null | undefined;
+
+function loadSkillDatesManifest(): SkillDatesManifest | null {
+  if (cachedSkillDates !== undefined) return cachedSkillDates;
+  try {
+    const p = path.join(siteRoot, "data", "skill-dates.json");
+    cachedSkillDates = JSON.parse(
+      fs.readFileSync(p, "utf8"),
+    ) as SkillDatesManifest;
+  } catch {
+    cachedSkillDates = null;
+  }
+  return cachedSkillDates;
+}
+
+/**
+ * Per-skill updated_at from committed skill-dates.json only.
+ * Does not fall back to Coolify SOURCE_DATE (that would blanket every skill).
+ */
+export function getSkillUpdatedAt(slug: string): string | null {
+  const raw = loadSkillDatesManifest()?.skills?.[slug];
+  if (!raw) return null;
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
 export type DescriptionParts = {
@@ -182,9 +214,9 @@ export async function getSupportingFiles(
   );
 }
 
-/** Site-local download for a skill file (served from dist at build time). */
+/** Site-local raw skill file URL (canonical /skill/<name>/…; /files/ 301s here). */
 export function skillFileUrl(slug: string, filePath = "SKILL.md"): string {
-  return `/files/${encodeSkillFilePath(slug)}/${encodeSkillFilePath(filePath)}`;
+  return `/skill/${encodeSkillFilePath(slug)}/${encodeSkillFilePath(filePath)}`;
 }
 
 /** Optional last-updated from Coolify/build env; omit when absent. */
@@ -231,7 +263,6 @@ export function displayTitle(skill: SkillEntry | { data: { title?: string; name:
 
 export async function getSkillListItems(): Promise<SkillListItem[]> {
   const skills = await getAllSkills();
-  const updatedAt = getSourceUpdatedAt();
   const items: SkillListItem[] = [];
 
   for (const skill of skills) {
@@ -247,7 +278,7 @@ export async function getSkillListItems(): Promise<SkillListItem[]> {
       category: skill.data.metadata?.category ?? null,
       tags: skill.data.metadata?.tags ?? [],
       hasSupporting: supporting.length > 0,
-      updatedAt,
+      updatedAt: getSkillUpdatedAt(slug),
       description: skill.data.description,
     });
   }
