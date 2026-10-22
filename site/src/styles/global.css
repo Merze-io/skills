@@ -470,10 +470,22 @@ h3 {
   margin-top: 0.35rem;
 }
 
+.install-method {
+  margin-top: 1.5rem;
+}
+
+.install-method__title {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-heading);
+}
+
 .install-snippet {
   display: grid;
   gap: 0.75rem;
-  margin-top: 1rem;
+  margin-top: 0.75rem;
 }
 
 .install-snippet pre {
