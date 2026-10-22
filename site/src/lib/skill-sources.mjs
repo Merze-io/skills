@@ -1,8 +1,7 @@
 /**
  * Shared rules for which skill-folder files may be published under /files/
- * and which markdown entries may become site pages / Pagefind documents.
- * MER-1098 (distribution) should reuse this module (or the .ts re-export) so
- * allowlist / symlink policy stays one source of truth.
+ * and /skill/ (MER-1098). Allowlist / symlink / path policy stays one source.
+ * MER-1103 content-collection filters reuse the same helpers.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -31,14 +30,56 @@ export function isAllowedSkillFileName(name) {
   return ALLOWED_SKILL_FILE_EXT.test(name);
 }
 
+/**
+ * Strict skill-relative file-name rule (single source of truth for MER-1098 /
+ * MER-1103). Every path segment must be `[A-Za-z0-9._-]+` with no leading dot;
+ * rejects `..`, empty segments, backslashes, control characters, and absolute
+ * paths. Callers (listSafeSkillFiles, verify-dist, #4 content filters) IMPORT
+ * this — do not copy.
+ *
+ * Canonical owner: skills#3 @ dd61487. Keep this function identical across PRs.
+ */
+export const SKILL_PATH_SEGMENT_RE = /^[A-Za-z0-9._-]+$/;
+
+export function assertSafeSkillRelativePath(relativePath) {
+  if (typeof relativePath !== "string" || relativePath.length === 0) {
+    throw new Error("[skill-sources] empty relative path");
+  }
+  if (/[\\\x00-\x1f\x7f]/.test(relativePath)) {
+    throw new Error(
+      `[skill-sources] unsafe path (backslash or control char): ${JSON.stringify(relativePath)}`,
+    );
+  }
+  if (path.posix.isAbsolute(relativePath)) {
+    throw new Error(
+      `[skill-sources] absolute path rejected: ${JSON.stringify(relativePath)}`,
+    );
+  }
+  const segments = relativePath.split("/");
+  for (const seg of segments) {
+    if (seg === "" || seg === ".." || seg.startsWith(".")) {
+      throw new Error(
+        `[skill-sources] unsafe path segment (${JSON.stringify(seg)}): ${JSON.stringify(relativePath)}`,
+      );
+    }
+    if (!SKILL_PATH_SEGMENT_RE.test(seg)) {
+      throw new Error(
+        `[skill-sources] path segment must match [A-Za-z0-9._-] (no leading dot): ${JSON.stringify(relativePath)}`,
+      );
+    }
+  }
+}
+
 function isInsideDir(childReal, rootReal) {
-  const root = rootReal.endsWith(path.sep) ? rootReal : rootReal + path.sep;
-  return childReal === rootReal || childReal.startsWith(root);
+  return (
+    childReal === rootReal || childReal.startsWith(rootReal + path.sep)
+  );
 }
 
 /**
  * True when `candidatePath` is a regular, allowlisted file confined to
- * `skillDir`. Symbolic links always return false (never followed).
+ * `skillDir` with a safe relative path. Symbolic links return false
+ * (collection filter); `listSafeSkillFiles` fails the build on symlinks.
  */
 export function isSafeSkillSourceFile(candidatePath, skillDir) {
   const root = path.resolve(skillDir);
@@ -58,6 +99,14 @@ export function isSafeSkillSourceFile(candidatePath, skillDir) {
   if (!st.isFile()) return false;
   if (!isAllowedSkillFileName(path.basename(candidate))) return false;
 
+  let relativePath;
+  try {
+    relativePath = path.relative(root, candidate).split(path.sep).join("/");
+    assertSafeSkillRelativePath(relativePath);
+  } catch {
+    return false;
+  }
+
   let fileReal;
   try {
     fileReal = fs.realpathSync(candidate);
@@ -69,40 +118,12 @@ export function isSafeSkillSourceFile(candidatePath, skillDir) {
 }
 
 /**
- * Resolve an Astro content-layer `filePath` (relative to the site project root)
- * to an absolute filesystem path.
- */
-export function absolutePathFromCollectionFilePath(siteRoot, filePath) {
-  return path.resolve(siteRoot, filePath);
-}
-
-/**
- * Relative path inside the skill folder for a content collection entry id
- * such as `us-llc-state-cost/skill` → `SKILL.md` or
- * `us-llc-state-cost/nested/doc` → `nested/doc.md`.
- */
-export function relativePathFromCollectionId(entryId) {
-  const cleaned = String(entryId).replace(/\\/g, "/");
-  const parts = cleaned.split("/").filter(Boolean);
-  if (parts.length < 2) {
-    const base = cleaned.replace(/\.md$/i, "");
-    return base.toLowerCase() === "skill" ? "SKILL.md" : `${base}.md`;
-  }
-  const rest = parts.slice(1);
-  const last = rest[rest.length - 1];
-  if (last.toLowerCase() === "skill") {
-    rest[rest.length - 1] = "SKILL.md";
-  } else if (!/\.md$/i.test(last)) {
-    rest[rest.length - 1] = `${last}.md`;
-  }
-  return rest.join("/");
-}
-
-/**
  * Walk a skill folder and return only safe, allowlisted regular files.
- * - Skips symbolic links (never follows them).
+ * - Fails the build on symbolic links (plan §2.1).
  * - Rejects any path whose realpath escapes the skill root.
- * - Throws if a non-symlink file has a disallowed extension (fail loudly).
+ * - Rejects relative paths with `\`, controls, `..`, or absolute form.
+ * - Throws if a file has a disallowed extension (fail loudly).
+ * - Lists SKILL.md first, then locale-sorted paths.
  */
 export function listSafeSkillFiles(skillDir) {
   const root = path.resolve(skillDir);
@@ -119,10 +140,9 @@ export function listSafeSkillFiles(skillDir) {
       const from = path.join(dir, entry.name);
 
       if (entry.isSymbolicLink()) {
-        console.warn(
-          `[skill-sources] skipping symlink: ${path.relative(root, from)}`,
+        throw new Error(
+          `[skill-sources] symlink not allowed in skill folder: ${path.relative(root, from)}`,
         );
-        continue;
       }
 
       if (entry.isDirectory()) {
@@ -152,12 +172,17 @@ export function listSafeSkillFiles(skillDir) {
       }
 
       const relativePath = path.relative(root, from).split(path.sep).join("/");
+      assertSafeSkillRelativePath(relativePath);
       out.push({ relativePath, absolutePath: from });
     }
   }
 
   walk(root);
-  return out.sort((a, b) => a.relativePath.localeCompare(b.relativePath, "en"));
+  return out.sort((a, b) => {
+    if (a.relativePath === "SKILL.md") return -1;
+    if (b.relativePath === "SKILL.md") return 1;
+    return a.relativePath.localeCompare(b.relativePath, "en");
+  });
 }
 
 export function listPublishableSkillDirs(repoRoot) {

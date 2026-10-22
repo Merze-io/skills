@@ -5,13 +5,13 @@
  */
 export {
   ALLOWED_SKILL_FILE_EXT,
-  absolutePathFromCollectionFilePath,
+  SKILL_PATH_SEGMENT_RE,
+  assertSafeSkillRelativePath,
   isAllowedSkillFileName,
   isPublishableSkillFolder,
   isSafeSkillSourceFile,
   listPublishableSkillDirs,
   listSafeSkillFiles,
-  relativePathFromCollectionId,
 } from "./skill-sources.mjs";
 
 export type SkillSourceFile = {

@@ -53,10 +53,33 @@ jobs:
           # Single scanner (also runs at end of npm run build). Policy in DESIGN.md.
           node scripts/scrub-github.mjs
 
-      - name: Skill file allowlist rejects svg and skips symlinks
+      - name: Skill allowlist, path rule, nested install, github gate self-test
         working-directory: site
         run: |
           set -euo pipefail
+
+          expect_build_fail() {
+            local label="$1"
+            local needle="$2"
+            set +e
+            NO_COLOR=1 FORCE_COLOR=0 npm run build > /tmp/files-sec-build.log 2>&1
+            local code=$?
+            set -e
+            sed -i 's/\x1b\[[0-9;]*[mK]//g' /tmp/files-sec-build.log
+            if [[ $code -eq 0 ]]; then
+              echo "Expected build to fail: $label"
+              cat /tmp/files-sec-build.log
+              exit 1
+            fi
+            if ! grep -F "$needle" /tmp/files-sec-build.log; then
+              echo "Expected error containing: $needle"
+              cat /tmp/files-sec-build.log
+              exit 1
+            fi
+            echo "OK fail: $label"
+          }
+
+          # Disallowed extension
           BAD="../zz-files-security"
           mkdir -p "$BAD"
           cat > "$BAD/SKILL.md" <<'EOF'
@@ -67,63 +90,165 @@ jobs:
           # fixture
           EOF
           printf '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>\n' > "$BAD/evil.svg"
-          # Symlink that would leak a secret if followed
-          printf 'SECRET=should-not-publish\n' > ../site/secret.env.ci
-          ln -s ../site/secret.env.ci "$BAD/notes.txt"
-          set +e
-          NO_COLOR=1 FORCE_COLOR=0 npm run build > /tmp/files-sec-build.log 2>&1
-          code=$?
-          set -e
-          rm -f ../site/secret.env.ci
+          expect_build_fail "disallowed svg" "Disallowed file"
           rm -rf "$BAD"
-          sed -i 's/\x1b\[[0-9;]*[mK]//g' /tmp/files-sec-build.log
-          if [[ $code -eq 0 ]]; then
-            echo "Expected build to fail on disallowed evil.svg"
-            cat /tmp/files-sec-build.log
-            exit 1
-          fi
-          if ! grep -F 'Disallowed file' /tmp/files-sec-build.log; then
-            echo "Expected Disallowed file error"
-            cat /tmp/files-sec-build.log
-            exit 1
-          fi
-          echo "Disallowed svg correctly failed the build"
-          # Symlink-only fixture should succeed (symlink skipped, no svg)
-          GOOD="../zz-files-symlink-ok"
-          mkdir -p "$GOOD"
-          cat > "$GOOD/SKILL.md" <<'EOF'
+
+          # Symlinks fail the build
+          SYML="../zz-files-symlink-fail"
+          mkdir -p "$SYML"
+          cat > "$SYML/SKILL.md" <<'EOF'
           ---
-          name: zz-files-symlink-ok
-          description: CI fixture proving symlinks are skipped.
+          name: zz-files-symlink-fail
+          description: CI fixture proving symlinks fail the build.
           ---
           # fixture
           EOF
           printf 'SECRET=nope\n' > ../site/secret.env.ci
-          ln -s ../site/secret.env.ci "$GOOD/notes.txt"
-          npm run build
-          test ! -e dist/files/zz-files-symlink-ok/notes.txt
-          # Ensure secret never landed under dist/files
-          ! grep -R 'SECRET=nope' dist/files || { echo 'secret leaked'; exit 1; }
-          rm -rf "$GOOD" ../site/secret.env.ci
-          echo "Symlink skip OK"
-          # Symlinked .md must not become a page or Pagefind hit
-          MDFIX="../zz-symlink-md"
-          mkdir -p "$MDFIX"
-          cat > "$MDFIX/SKILL.md" <<'EOF'
+          ln -s ../site/secret.env.ci "$SYML/notes.txt"
+          expect_build_fail "symlink" "symlink not allowed"
+          rm -rf "$SYML" ../site/secret.env.ci
+
+          # Hostile names fail the build (shell metacharacters / URL punctuation)
+          HOST="../zz-hostile-names"
+          mkdir -p "$HOST"
+          cat > "$HOST/SKILL.md" <<'EOF'
           ---
-          name: zz-symlink-md
-          description: CI fixture proving symlinked markdown is not published as a page.
+          name: zz-hostile-names
+          description: CI fixture proving hostile file names fail the build.
           ---
           # fixture
           EOF
-          printf 'SYMLINK_MD_LEAK_MARKER=should-not-index\n' > ../site/secret.env.ci
-          ln -s ../site/secret.env.ci "$MDFIX/leak.md"
+          printf 'x\n' > "$HOST"'/$(touch PWNED).txt'
+          expect_build_fail 'hostile $(touch)' "path segment must match"
+          rm -f "$HOST"'/$(touch PWNED).txt'
+          printf 'x\n' > "$HOST/x;touch PWNED2;.txt"
+          expect_build_fail "hostile semicolon" "path segment must match"
+          rm -f "$HOST/x;touch PWNED2;.txt"
+          printf 'x\n' > "$HOST/q#frag?.txt"
+          expect_build_fail "hostile hash/query" "path segment must match"
+          rm -rf "$HOST"
+
+          # Nested install: 7 files, curl --create-dirs delivers all
+          NEST="../zz-nested-install"
+          rm -rf "$NEST" /tmp/zz-nested-install-out
+          mkdir -p "$NEST/sub/deep"
+          cat > "$NEST/SKILL.md" <<'EOF'
+          ---
+          name: zz-nested-install
+          description: CI fixture proving nested install delivers every file.
+          ---
+          # fixture skill
+          EOF
+          printf 'states\n' > "$NEST/states.md"
+          printf 'config: true\n' > "$NEST/config.yaml"
+          printf 'meta\n' > "$NEST/meta.json"
+          printf 'notes\n' > "$NEST/sub/notes.txt"
+          printf '{"ok":true}\n' > "$NEST/sub/deep/data.json"
+          printf 'a,b\n1,2\n' > "$NEST/sub/deep/table.csv"
           npm run build
-          test ! -e dist/zz-symlink-md/leak/index.html
-          test ! -e dist/files/zz-symlink-md/leak.md
-          ! grep -R 'SYMLINK_MD_LEAK_MARKER' dist || { echo 'symlinked md leaked into dist'; exit 1; }
-          rm -rf "$MDFIX" ../site/secret.env.ci
-          echo "Symlinked md page skip OK"
+          test -f dist/files/zz-nested-install/SKILL.md
+          test -f dist/files/zz-nested-install/sub/notes.txt
+          test -f dist/files/zz-nested-install/sub/deep/data.json
+          # SKILL.md listed first in install panel
+          python3 - <<'PY'
+          from pathlib import Path
+          import html as htmlmod
+          import re
+          page = Path("dist/zz-nested-install/index.html").read_text()
+          m = re.search(r'file-list--install">(.*?)</ul>', page, re.S)
+          assert m, "missing install list"
+          hrefs = re.findall(r'href="(/files/zz-nested-install/[^"]+)"\s+download', m.group(1))
+          names = [h.split("/files/zz-nested-install/", 1)[1] for h in hrefs]
+          assert names, "no install files parsed"
+          assert names[0] == "SKILL.md", names
+          assert "sub/notes.txt" in names and "sub/deep/data.json" in names, names
+          assert len(names) == 7, names
+          assert "--create-dirs" in page
+          pre = re.search(r'install-snippet.*?<pre[^>]*><code>(.*?)</code></pre>', page, re.S)
+          assert pre, "missing install snippet"
+          cmd = htmlmod.unescape(pre.group(1))
+          Path("/tmp/zz-nested-install.sh").write_text(
+              cmd.replace("https://skills.merze.ai", "http://127.0.0.1:8765")
+          )
+          print("install files:", names)
+          PY
+          python3 -m http.server 8765 --directory dist >/tmp/zz-http.log 2>&1 &
+          HTTP_PID=$!
+          cleanup_http() { kill "$HTTP_PID" 2>/dev/null || true; }
+          trap cleanup_http EXIT
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8765/files/zz-nested-install/SKILL.md >/dev/null && break
+            sleep 0.2
+          done
+          mkdir -p /tmp/zz-nested-install-out
+          ( cd /tmp/zz-nested-install-out && bash /tmp/zz-nested-install.sh )
+          cleanup_http
+          trap - EXIT
+          test "$(find /tmp/zz-nested-install-out/zz-nested-install -type f | wc -l)" -eq 7
+          cmp dist/files/zz-nested-install/SKILL.md /tmp/zz-nested-install-out/zz-nested-install/SKILL.md
+          cmp dist/files/zz-nested-install/sub/notes.txt /tmp/zz-nested-install-out/zz-nested-install/sub/notes.txt
+          cmp dist/files/zz-nested-install/sub/deep/data.json /tmp/zz-nested-install-out/zz-nested-install/sub/deep/data.json
+          echo "Nested install 7/7 OK"
+          rm -rf "$NEST" /tmp/zz-nested-install-out /tmp/zz-nested-install.sh
+
+          # Github gate self-test: raw png append + gunzipped wasm injection
+          npm run build
+          run_gate_on_copy() {
+            local src="$1"
+            local log="$2"
+            local bak
+            bak=$(mktemp -d)
+            mv dist "$bak/dist"
+            mv "$src" dist
+            set +e
+            node scripts/scrub-github.mjs >"$log" 2>&1
+            local code=$?
+            set -e
+            mv dist "$src"
+            mv "$bak/dist" dist
+            rm -rf "$bak"
+            return "$code"
+          }
+
+          GATE=$(mktemp -d)
+          cp -a dist/. "$GATE/"
+          printf 'github' >> "$GATE/logo.png"
+          set +e
+          run_gate_on_copy "$GATE" /tmp/gate-logo.log
+          logo_code=$?
+          set -e
+          if [[ $logo_code -eq 0 ]]; then
+            echo "Expected gate fail on logo.png"
+            cat /tmp/gate-logo.log
+            exit 1
+          fi
+          echo "OK gate fail: logo.png"
+          rm -rf "$GATE"
+
+          GATE2=$(mktemp -d)
+          cp -a dist/. "$GATE2/"
+          python3 - "$GATE2" <<'PY'
+          import gzip, pathlib, sys
+          wasm = pathlib.Path(sys.argv[1]) / "pagefind" / "wasm.en.pagefind"
+          raw = wasm.read_bytes()
+          try:
+              body = gzip.decompress(raw)
+          except Exception:
+              body = raw
+          wasm.write_bytes(gzip.compress(body + b"\0github\0"))
+          PY
+          set +e
+          run_gate_on_copy "$GATE2" /tmp/gate-wasm.log
+          wasm_code=$?
+          set -e
+          if [[ $wasm_code -eq 0 ]]; then
+            echo "Expected gate fail on gunzipped wasm"
+            cat /tmp/gate-wasm.log
+            exit 1
+          fi
+          echo "OK gate fail: gunzipped wasm.en.pagefind"
+          rm -rf "$GATE2"
+
           # Restore clean dist for later steps
           npm run build
 

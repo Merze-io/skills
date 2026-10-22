@@ -9,6 +9,7 @@ import {
   getPublishedSkillFiles,
   getSupportingFiles,
   parseDescription,
+  shellSingleQuote,
   skillFileUrl,
   skillSlug,
   supportingFileSlug,
@@ -41,11 +42,12 @@ const tags = skill.data.metadata?.tags ?? [];
 const category = skill.data.metadata?.category ?? null;
 
 const installSnippet = [
-  `mkdir -p ${slug}`,
-  ...publishedFiles.map(
-    (f) =>
-      `curl -fsSLo ${slug}/${f.relativePath} https://skills.merze.ai${skillFileUrl(slug, f.relativePath)}`,
-  ),
+  `mkdir -p ${shellSingleQuote(slug)}`,
+  ...publishedFiles.map((f) => {
+    const localPath = `${slug}/${f.relativePath}`;
+    const url = `https://skills.merze.ai${skillFileUrl(slug, f.relativePath)}`;
+    return `curl --create-dirs -fsSLo ${shellSingleQuote(localPath)} ${shellSingleQuote(url)}`;
+  }),
 ].join(" && \\\n");
 ---
 

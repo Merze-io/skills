@@ -38,11 +38,14 @@ Derived from the MER-1097 redesign (light Merze brand, Inter, navy).
 
 ## /files/ publishing policy
 
-Shared helper: `src/lib/skill-sources.mjs` (+ typed re-export `skill-sources.ts`).
+Shared helper: `src/lib/skill-sources.mjs` (+ typed re-export `skill-sources.ts`). MER-1098 imports the same module — do not fork the path rule.
 
 - Allowlist extensions only: `md`, `txt`, `json`, `yaml`/`yml`, `csv`
-- Skip symlinks; refuse paths that resolve outside the skill folder
+- Strict relative paths via `assertSafeSkillRelativePath`: each segment matches `[A-Za-z0-9._-]+`, no leading dot, no `..`, no `\`, no control chars, no absolute paths
+- Symlinks fail the build
+- Refuse paths that resolve outside the skill folder
 - Disallowed files (e.g. `.svg`, `.html`, `.env`) fail the build
+- Install commands use `curl --create-dirs`, shell-quoted paths, and URL-encoded segments; `SKILL.md` is listed first
 - nginx `location /files/` serves `text/plain; charset=utf-8`, `nosniff`, CSP `default-src 'none'; sandbox`
 
 ## GitHub substring gate
@@ -50,10 +53,13 @@ Shared helper: `src/lib/skill-sources.mjs` (+ typed re-export `skill-sources.ts`
 Single scanner: `scripts/scrub-github.mjs` (also re-run in CI).
 
 - Scrubs Pagefind UI translator credit URLs
-- Fail closed: scans every file under `dist/` (text, decompressed Pagefind `.pf_*`, wasm, images, fonts)
+- Fail closed: scans every file under `dist/`
+- Gunzips any buffer starting with gzip magic `1f 8b` (Pagefind `.pf_*`, `wasm.*.pagefind`)
+- PNG `tEXt` / `zTXt` / `iTXt` chunk payloads are inflated and scanned
+- Unreadable files fail the build (no warn-and-skip)
 - Allowlist only: the literal term `github-copilot`
 - Any other hit — including skill content under `dist/files/` — fails the build
 
 ## Content collection vs `/files/`
 
-The Astro content glob can follow symlinks. Collection entries are filtered through the same `skill-sources` rules (`isSafeSkillSourceFile`): symlinks and non-allowlisted paths never become pages or Pagefind documents. Install lists come from `listSafeSkillFiles` so they cannot drift from `/files/`.
+The Astro content glob can follow symlinks. Collection entries are filtered through the same `skill-sources` rules (`isSafeSkillSourceFile`). Symlinks anywhere in a skill folder fail the publisher (`listSafeSkillFiles`). Install lists come from `listSafeSkillFiles` so they cannot drift from `/files/`.

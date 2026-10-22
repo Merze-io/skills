@@ -2,11 +2,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getCollection, type CollectionEntry } from "astro:content";
 import {
-  absolutePathFromCollectionFilePath,
   isPublishableSkillFolder,
   isSafeSkillSourceFile,
   listSafeSkillFiles,
-  relativePathFromCollectionId,
   type SkillSourceFile,
 } from "./skill-sources";
 
@@ -20,29 +18,31 @@ function skillDirForSlug(slug: string): string {
   return path.join(repoRoot, slug);
 }
 
-/** Absolute path on disk for a content-collection entry (symlink-aware). */
-function absolutePathForEntry(
-  entry: { id: string; filePath?: string },
-  skillSlugName: string,
-): string {
-  if (entry.filePath) {
-    return absolutePathFromCollectionFilePath(siteRoot, entry.filePath);
-  }
-  return path.join(
-    skillDirForSlug(skillSlugName),
-    relativePathFromCollectionId(entry.id),
-  );
-}
-
 function isSafeCollectionEntry(
   entry: { id: string; filePath?: string },
   skillSlugName: string,
 ): boolean {
   if (!isPublishableSkillFolder(skillSlugName)) return false;
+  // Astro 5 glob loader always sets filePath.
+  if (!entry.filePath) return false;
   return isSafeSkillSourceFile(
-    absolutePathForEntry(entry, skillSlugName),
+    path.resolve(siteRoot, entry.filePath),
     skillDirForSlug(skillSlugName),
   );
+}
+
+/** Encode each path segment for /files/ URLs (and install curl args). */
+export function encodeSkillFilePath(filePath: string): string {
+  return filePath
+    .replace(/^\/+/, "")
+    .split("/")
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+}
+
+/** Single-quote for safe embedding in generated shell install commands. */
+export function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
 /** Allowlisted, non-symlink files for a skill (install + /files/ parity). */
@@ -183,9 +183,8 @@ export async function getSupportingFiles(
 }
 
 /** Site-local download for a skill file (served from dist at build time). */
-export function skillFileUrl(slug: string, path = "SKILL.md"): string {
-  const cleaned = path.replace(/^\/+/, "");
-  return `/files/${slug}/${cleaned}`;
+export function skillFileUrl(slug: string, filePath = "SKILL.md"): string {
+  return `/files/${encodeSkillFilePath(slug)}/${encodeSkillFilePath(filePath)}`;
 }
 
 /**
