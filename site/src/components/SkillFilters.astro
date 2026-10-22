@@ -103,7 +103,9 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
         <a class="skill-card__link" href={`/${skill.slug}/`}>
           <div class="skill-card__top">
             <h3 class="skill-card__name">{skill.name}</h3>
-            {skill.version && <span class="badge">v{skill.version}</span>}
+            {skill.version && (
+              <span class="badge badge--version">v{skill.version}</span>
+            )}
           </div>
           <p class="skill-card__summary">{skill.summary}</p>
           <div class="skill-card__tags">
