@@ -492,8 +492,9 @@ jobs:
 
           def resolve(href: str) -> Path | None:
               r = href.lstrip("/")
-              for p in (dist / r, dist / r / "index.html", dist / f"{r}.html"):
-                  if p.exists():
+              # Prefer index.html / .html files; dist/<route> is often a directory.
+              for p in (dist / r / "index.html", dist / f"{r}.html", dist / r):
+                  if p.is_file():
                       return p
               return None
 
