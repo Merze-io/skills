@@ -1,32 +1,13 @@
 {
   "round": 0,
   "verdict": "APPROVE",
+  "reason": "",
   "criteria": [
-    {
-      "id": "AC1",
-      "status": "pass",
-      "evidence": "CopyButton.astro supports iconOnly prop and sets title/aria-label when enabled."
-    },
-    {
-      "id": "AC2",
-      "status": "pass",
-      "evidence": "SkillFilters.astro places <CopyButton> inside .skill-card__top with iconOnly={true}, label=\"Copy for Agents\", and text={skill.chatAgentPaste}."
-    },
-    {
-      "id": "AC3",
-      "status": "pass",
-      "evidence": "Clicking copy button copies chat agent commands, displays 'Copied' feedback, and calls e.stopPropagation() to prevent card navigation."
-    },
-    {
-      "id": "AC4",
-      "status": "pass",
-      "evidence": "global.css defines .copy-btn--icon-only styling and hides text label when icon-only."
-    },
-    {
-      "id": "AC5",
-      "status": "pass",
-      "evidence": "All build checks and check-agent-maps.mjs passed successfully."
-    }
+    { "id": "AC1", "status": "pass", "evidence": "CopyButton.astro updated with data-tooltip, e.preventDefault(), and e.stopPropagation()." },
+    { "id": "AC2", "status": "pass", "evidence": "SkillFilters.astro places <CopyButton text={skill.chatAgentPaste} label=\"Copy for Agents\" iconOnly={true} /> inside .skill-card__top." },
+    { "id": "AC3", "status": "pass", "evidence": "Stretched link pattern used (.skill-card__link absolute inset: 0 z-index: 1, copy control z-index: 2) ensuring copy clicks do not trigger card navigation." },
+    { "id": "AC4", "status": "pass", "evidence": "global.css defines [data-tooltip] instant hover pseudo-element tooltip and card container positioning." },
+    { "id": "AC5", "status": "pass", "evidence": "All build checks (build, check-skill-dates, check-redirect-cases, verify-dist, check-agent-maps) passed successfully." }
   ],
   "fixes": []
 }
