@@ -18,7 +18,7 @@ const { text = "", url, label = "Copy", iconOnly = false } = Astro.props;
     data-copy={text || undefined}
     data-copy-url={url || undefined}
     data-copy-label={label}
-    title={iconOnly ? label : undefined}
+    data-tooltip={iconOnly ? label : undefined}
     aria-label={iconOnly ? label : undefined}
   >
     <span class="copy-btn__idle">
@@ -127,6 +127,7 @@ const { text = "", url, label = "Copy", iconOnly = false } = Astro.props;
         if (btn.dataset.bound) return;
         btn.dataset.bound = "1";
         btn.addEventListener("click", async (e) => {
+          e.preventDefault();
           e.stopPropagation();
           const ok = await copyValue(btn);
           setStatus(btn, ok ? "ok" : "err");
