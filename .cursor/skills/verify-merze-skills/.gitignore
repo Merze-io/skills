@@ -1,0 +1,5 @@
+run/
+artifacts/*.png
+artifacts/*.aria.txt
+artifacts/*.txt
+!artifacts/.gitkeep
