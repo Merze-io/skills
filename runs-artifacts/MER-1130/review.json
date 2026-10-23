@@ -1,0 +1,28 @@
+{
+  "round": 0,
+  "verdict": "APPROVE",
+  "reason": "",
+  "criteria": [
+    {
+      "id": "AC1",
+      "status": "pass",
+      "evidence": "site/src/lib/skills.ts exposes getChatAgentPaste(slug) and includes chatAgentPaste string in SkillListItem, populated in getSkillListItems()"
+    },
+    {
+      "id": "AC2",
+      "status": "pass",
+      "evidence": "site/src/components/SkillFilters.astro renders <CopyButton text={skill.chatAgentPaste} label=\"Copy for chat agents\" /> inside each skill card within .skill-card__copy"
+    },
+    {
+      "id": "AC3",
+      "status": "pass",
+      "evidence": "CopyButton component handles clipboard copy and 'Copied' feedback; placed outside the card <a> link to prevent accidental navigation"
+    },
+    {
+      "id": "AC4",
+      "status": "pass",
+      "evidence": "All build checks (npm run build, check-skill-dates, check-redirect-cases, verify-dist) and agent maps validation (node scripts/check-agent-maps.mjs) passed successfully"
+    }
+  ],
+  "fixes": []
+}
