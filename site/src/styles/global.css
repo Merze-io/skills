@@ -907,6 +907,18 @@ fieldset.filter-group legend {
   margin-top: auto;
 }
 
+.skill-card__copy {
+  padding: 0.4rem 1.2rem 0.35rem;
+}
+
+.skill-card__copy .copy-control {
+  display: inline-flex;
+}
+
+.skill-card__copy .copy-btn {
+  width: 100%;
+}
+
 .empty-state {
   padding: 2rem 1.25rem;
   border: 1px dashed var(--color-border-strong);

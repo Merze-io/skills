@@ -7,6 +7,7 @@ import {
   listSafeSkillFiles,
   type SkillSourceFile,
 } from "./skill-sources";
+import { SITE_ORIGIN } from "./routes";
 import { readSkillDates } from "./skill-dates";
 
 export type SkillEntry = CollectionEntry<"skills">;
@@ -49,6 +50,29 @@ export function shellSingleQuote(value: string): string {
 /** Allowlisted, non-symlink files for a skill (install + /skill/ raw parity). */
 export function getPublishedSkillFiles(slug: string): SkillSourceFile[] {
   return listSafeSkillFiles(skillDirForSlug(slug));
+}
+
+/**
+ * Chat-agent-friendly paste block for a skill:
+ * a plain-text list of absolute file URLs prefixed by instructions.
+ */
+export function getChatAgentPaste(slug: string): string {
+  const files = getPublishedSkillFiles(slug);
+  const sorted = [...files].sort((a, b) => {
+    if (a.relativePath === "SKILL.md") return -1;
+    if (b.relativePath === "SKILL.md") return 1;
+    return a.relativePath.localeCompare(b.relativePath, "en");
+  });
+  const fileLines = sorted
+    .map((f) => `- ${SITE_ORIGIN}${skillFileUrl(slug, f.relativePath)}`)
+    .join("\n");
+  return [
+    "Read these Merze skill files and follow them for this chat:",
+    "",
+    fileLines,
+    "",
+    "Treat SKILL.md as the instructions. Use supporting files only when the skill says to.",
+  ].join("\n");
 }
 
 /**
@@ -222,6 +246,7 @@ export type SkillListItem = {
   hasSupporting: boolean;
   updatedAt: string | null;
   description: string;
+  chatAgentPaste: string;
 };
 
 /** Human label for catalog and detail pages; falls back to the machine name. */
@@ -249,6 +274,7 @@ export async function getSkillListItems(): Promise<SkillListItem[]> {
       hasSupporting: supporting.length > 0,
       updatedAt: getSkillUpdatedAt(slug),
       description: skill.data.description,
+      chatAgentPaste: getChatAgentPaste(slug),
     });
   }
 
