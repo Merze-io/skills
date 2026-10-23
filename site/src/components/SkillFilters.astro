@@ -108,6 +108,7 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
               <h3 class="skill-card__name">{skill.title}</h3>
               <p class="skill-card__id">{skill.name}</p>
             </div>
+            <CopyButton text={skill.chatAgentPaste} label="Copy for Agents" iconOnly={true} />
             {skill.version && (
               <span class="badge badge--version">v{skill.version}</span>
             )}
@@ -125,9 +126,7 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
             )}
           </div>
         </a>
-        <div class="skill-card__copy">
-          <CopyButton text={skill.chatAgentPaste} label="Copy for chat agents" />
-        </div>
+
       </li>
     ))
   }
