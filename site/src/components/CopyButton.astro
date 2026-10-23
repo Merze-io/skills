@@ -5,18 +5,21 @@ interface Props {
   text?: string;
   url?: string;
   label?: string;
+  iconOnly?: boolean;
 }
 
-const { text = "", url, label = "Copy" } = Astro.props;
+const { text = "", url, label = "Copy", iconOnly = false } = Astro.props;
 ---
 
 <div class="copy-control">
   <button
     type="button"
-    class="btn btn--secondary btn--sm copy-btn"
+    class={"btn btn--secondary btn--sm copy-btn" + (iconOnly ? " copy-btn--icon-only" : "")}
     data-copy={text || undefined}
     data-copy-url={url || undefined}
     data-copy-label={label}
+    title={iconOnly ? label : undefined}
+    aria-label={iconOnly ? label : undefined}
   >
     <span class="copy-btn__idle">
       <Icon name="copy" size={16} />
@@ -123,7 +126,8 @@ const { text = "", url, label = "Copy" } = Astro.props;
       .forEach((btn) => {
         if (btn.dataset.bound) return;
         btn.dataset.bound = "1";
-        btn.addEventListener("click", async () => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
           const ok = await copyValue(btn);
           setStatus(btn, ok ? "ok" : "err");
         });

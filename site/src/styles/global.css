@@ -907,16 +907,14 @@ fieldset.filter-group legend {
   margin-top: auto;
 }
 
-.skill-card__copy {
-  padding: 0.4rem 1.2rem 0.35rem;
+.copy-btn--icon-only {
+  padding: 0.25rem;
+  line-height: 1;
+  min-width: 0;
 }
 
-.skill-card__copy .copy-control {
-  display: inline-flex;
-}
-
-.skill-card__copy .copy-btn {
-  width: 100%;
+.copy-btn--icon-only [data-copy-label-text] {
+  display: none;
 }
 
 .empty-state {
