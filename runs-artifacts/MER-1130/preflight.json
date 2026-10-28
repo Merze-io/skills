@@ -1,0 +1,10 @@
+{
+  "alreadyDone": false,
+  "reason": "The catalog page (index.astro) currently shows skill cards as plain links to detail pages — no copy button exists on any card. The CopyButton component exists and is already used on the skill detail page (skill/[name]/index.astro) for chat-agent paste and install commands, but it has never been added to the catalog grid view. The issue asks to put a copy button directly on catalog cards so users can grab the chat-agent paste text without navigating into a skill detail page.",
+  "evidence": [
+    "grep -rn 'CopyButton' site/src/ shows CopyButton only imported/used in skill/[name]/index.astro, not in index.astro or SkillFilters.astro",
+    "cat site/src/pages/index.astro confirms no CopyButton usage in the catalog page",
+    "cat site/src/components/SkillFilters.astro confirms no copy button in the skill card grid",
+    "git log --all --oneline --grep='MER-1130' returns no matches — no prior work on this ticket"
+  ]
+}
