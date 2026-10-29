@@ -700,6 +700,58 @@ jobs:
           echo "$asset_headers" | grep -qi 'wasm-unsafe-eval'
           echo "$asset_headers" | grep -qi 'immutable'
 
+          # MER-1104 edge rate limiting (nginx limit_req): local 429 proof.
+          # Realip is non-recursive, so the LAST X-Forwarded-For entry is the
+          # client key. Each loop pins its own loop IP there — a fresh bucket,
+          # immune to loopback traffic from the smoke steps above — and puts a
+          # distinct per-request breadcrumb in front of it.
+          rl_loop() {
+            local label="$1" url="$2" count="$3" ip="$4"
+            local first n200 n429
+            first=$(curl -s -o /dev/null -w '%{http_code}' \
+              -H "X-Forwarded-For: 10.255.0.1, ${ip}" "$url")
+            if [[ "$first" != "200" ]]; then
+              echo "MER-1104 ${label}: first request on fresh IP ${ip} expected 200, got ${first}"
+              return 1
+            fi
+            for i in $(seq 1 "$count"); do
+              curl -s -o /dev/null -w '%{http_code}\n' \
+                -H "X-Forwarded-For: 10.255.0.${i}, ${ip}" "$url"
+            done > "/tmp/rl-${label}.codes"
+            n200=$(awk '$1 == "200" {n++} END {print n + 0}' "/tmp/rl-${label}.codes")
+            n429=$(awk '$1 == "429" {n++} END {print n + 0}' "/tmp/rl-${label}.codes")
+            echo "MER-1104 ${label}: first=200 loop 200s=${n200} 429s=${n429} (requests=${count})"
+            if [[ "$n429" -lt 50 ]]; then
+              echo "MER-1104 ${label}: expected >=50 429s, got ${n429}"
+              sort "/tmp/rl-${label}.codes" | uniq -c
+              return 1
+            fi
+            if [[ "$n200" -lt 1 ]]; then
+              echo "MER-1104 ${label}: expected at least one 200 under the limit"
+              sort "/tmp/rl-${label}.codes" | uniq -c
+              return 1
+            fi
+          }
+          # raw files: 30r/m + burst 20 → 21 allowed, then 429
+          rl_loop raw "$ORIGIN/skill/us-llc-state-cost/SKILL.md" 80 10.201.0.2
+          # zips: 10r/m + burst 6 → 7 allowed, then 429
+          rl_loop zip "$ORIGIN/skill/us-llc-state-cost.zip" 65 10.202.0.2
+          # discovery JSON: 60r/m + burst 30 → 31 allowed, then 429
+          rl_loop discovery "$ORIGIN/skills.json" 95 10.203.0.2
+          # schemas/*.json share the discovery location but map to an empty key,
+          # so even with the discovery bucket saturated they must never 429.
+          schemas_code=$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "X-Forwarded-For: 10.255.1.1, 10.203.0.2" \
+            "$ORIGIN/schemas/skills-index-v1.json")
+          test "$schemas_code" = "200"
+          echo "MER-1104 schemas/*.json unthrottled: ${schemas_code}"
+          # Below-threshold requests stay intact for a fresh client IP.
+          fresh_code=$(curl -s -o /tmp/rl-fresh.json -w '%{http_code}' \
+            -H "X-Forwarded-For: 10.255.2.1, 10.204.0.2" "$ORIGIN/skills.json")
+          test "$fresh_code" = "200"
+          grep -q '"schema_version": 1' /tmp/rl-fresh.json
+          echo "MER-1104 fresh-IP discovery JSON 200 + unchanged body"
+
           # Redirect matrix (relative Location, one hop, query preserved)
           python3 - <<'PY'
           import subprocess, sys

@@ -66,3 +66,4 @@ Do not attach a browser to a stack you did not launch. Default `npm run dev` use
 - Never invent skills or weaken allowlist / scrub.
 - Prefer the verify stack for UI proof.
 - Health on deployed images. `GET /healthz` → `ok`.
+- Edge rate limits (MER-1104). **nginx `limit_req`** for raw `/skill/<name>/` files, `*.zip` downloads, and discovery JSON lives in `site/nginx.conf` (`rl_raw` 30r/m burst 20, `rl_zip` 10r/m burst 6, `rl_discovery` 60r/m burst 30, `limit_req_status 429`). Thresholds documented in `docs/agent/system-map.md` step 5. Do not hammer `/skills.zip` in QA.
