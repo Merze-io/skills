@@ -47,6 +47,8 @@ const cases = [
   "/about/?x=1\t301\t/about?x=1",
   "/healthz\t200\t",
   "/skills.json\t200\t",
+  "/sitemap.xml\t301\t/sitemap-index.xml",
+  "/sitemap.xml?x=1\t301\t/sitemap-index.xml?x=1",
   // Open-redirect probes — must 404 (never 301 with \\, TAB, CR, LF, or //)
   "/%5Cevil.com/\t404\t",
   "/%09/evil.com/\t404\t",
@@ -120,6 +122,10 @@ for (const name of names) {
   caseLines.push(
     `    ~^/skill/${name}(?:[/.]|\\z)                           "";`,
   );
+  // Collapse case + index.html together rather than requiring a second redirect.
+  caseLines.push(
+    `    ~*^/skill/${name}/index\\.html\\z                     /skill/${name};`,
+  );
   caseLines.push(
     `    ~*^/skill/${name}(?<r>(?:[/.]${SAFE_PATH}*[A-Za-z0-9._-])?)/?\\z  /skill/${name}$r;`,
   );
@@ -137,15 +143,15 @@ for (const name of names) {
   cases.push(`/skill/${name}/\t301\t/skill/${name}`);
   cases.push(`/skill/${name}/SKILL.md\t200\t`);
   cases.push(`/skill/${name}/SKILL.MD\t404\t`);
+  cases.push(`/skill/${name}/index.html\t301\t/skill/${name}`);
   cases.push(`/skill/${upper}\t301\t/skill/${name}`);
-  cases.push(`/skill/${upper}/states\t301\t/skill/${name}/states`);
+  cases.push(`/skill/${upper}/\t301\t/skill/${name}`);
+  cases.push(`/skill/${upper}/index.html\t301\t/skill/${name}`);
+  cases.push(`/skill/${upper}/index.html?x=1\t301\t/skill/${name}?x=1`);
   cases.push(`/files/${name}/\t301\t/skill/${name}/SKILL.md`);
   cases.push(`/files/${name}\t301\t/skill/${name}/SKILL.md`);
   cases.push(`/files/${name}/SKILL.md\t301\t/skill/${name}/SKILL.md`);
   cases.push(`/files/${name}/SKILL.md/\t301\t/skill/${name}/SKILL.md`);
-  cases.push(`/files/${name}/states.md\t301\t/skill/${name}/states.md`);
-  cases.push(`/files/${name}/states.md/\t301\t/skill/${name}/states.md`);
-  cases.push(`/files/${name}/states.md?x=1\t301\t/skill/${name}/states.md?x=1`);
   // CR/LF/TAB/backslash in path segment must not become Location
   cases.push(`/files/${name}/a%0d\t404\t`);
   cases.push(`/files/${name}/a%0a\t404\t`);
@@ -164,6 +170,10 @@ for (const name of names) {
     cases.push(`/skill/${name}/${doc}\t200\t`);
     cases.push(`/skill/${name}/${doc}/\t301\t/skill/${name}/${doc}`);
     cases.push(`/skill/${name}/${ent}\t200\t`);
+    cases.push(`/skill/${upper}/${doc}\t301\t/skill/${name}/${doc}`);
+    cases.push(`/files/${name}/${ent}\t301\t/skill/${name}/${ent}`);
+    cases.push(`/files/${name}/${ent}/\t301\t/skill/${name}/${ent}`);
+    cases.push(`/files/${name}/${ent}?x=1\t301\t/skill/${name}/${ent}?x=1`);
   }
 }
 
