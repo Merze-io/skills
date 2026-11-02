@@ -120,6 +120,14 @@ jobs:
         working-directory: site
         run: npm run verify-dist
 
+      - name: SEO metadata unit tests
+        working-directory: site
+        run: npm run test-seo
+
+      - name: Verify built page SEO
+        working-directory: site
+        run: npm run check-seo-pages
+
       - name: Reproducible distribution artifacts (cross-TZ)
         working-directory: site
         run: |

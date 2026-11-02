@@ -1,11 +1,27 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { absolute } from "../lib/routes";
+import { buildAboutPage } from "../lib/seo.mjs";
+import { getPageSeo } from "../lib/supporting-metadata";
+
+const description = getPageSeo("/about").description;
+const structuredData = buildAboutPage({
+  siteUrl: absolute("/"),
+  url: absolute("/about"),
+  name: "About Agent Skills",
+  description,
+  breadcrumbs: [
+    { name: "Catalog", url: absolute("/") },
+    { name: "About", url: absolute("/about") },
+  ],
+});
 ---
 
 <BaseLayout
   title="About"
-  description="What Agent Skills are and how to install them from skills.merze.ai into ChatGPT, Claude, Cursor, or Claude Code."
+  description={description}
   canonicalPath="/about"
+  structuredData={structuredData}
 >
   <article class="prose about-page">
     <h1>About Agent Skills</h1>

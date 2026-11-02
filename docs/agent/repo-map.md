@@ -15,8 +15,13 @@
 | `site/scripts/verify-dist.mjs` | Dist integrity checks |
 | `site/scripts/check-seo-http.mjs` | Bounded read-only HTTP discovery + origin/production-edge policy checks |
 | `site/scripts/check-seo-http.test.mjs` | Dynamic-catalog HTTP fixtures and negative regression tests |
+| `site/scripts/check-seo-pages.mjs` | Built-page SEO assertions (CI) |
 | `site/scripts/write-nginx-redirects.mjs` | Generate nginx maps and `site/scripts/redirect-cases.tsv` |
+| `site/scripts/generate-social-images.mjs` | Render committed 1200×630 social cards |
 | `site/nginx.conf` | Origin routes, stable Markdown alternate, sitemap alias, rate limits |
+| `site/src/lib/seo.mjs` | JSON-LD builders and safe serializer |
+| `site/data/page-seo.json` | Presentation-only title/description overrides |
+| `site/public/social/` | Committed social preview PNGs |
 | `site/scripts/scrub-github.mjs` | Fail-closed github substring gate |
 | `site/data/skill-dates.json` | Per-skill `updated_at` (committed) |
 | `site/Dockerfile` | nginx image for Coolify |
@@ -38,6 +43,10 @@ From `site` (Node 22):
 | `npm run verify-dist` | Dist schema/digest checks |
 | `npm run test-seo-http` | Node HTTP checker fixtures; includes old alternate bug and multi-skill inventory |
 | `npm run check-seo-http -- --origin http://127.0.0.1:18080` | GET/HEAD discovery checks against a built nginx image |
+| `npm run test-seo` | Metadata builder and JSON-LD escaping tests |
+| `npm run check-seo-pages` | Built-page canonical/OG/JSON-LD assertions |
+| `npm run social-images` | Re-render social cards (manual, offline) |
+| `npm run check-social-images` | Fail if committed social cards are stale (local only: font rendering is platform-specific) |
 | `npm run axe:viewports` | Axe at 320 / 360 / 1280 |
 
 From repo root:
