@@ -16,7 +16,9 @@
     "verify-dist": "node scripts/verify-dist.mjs",
     "generate-skill-dates": "node scripts/generate-skill-dates.mjs",
     "check-skill-dates": "node scripts/generate-skill-dates.mjs --check",
-    "check-redirect-cases": "node scripts/write-nginx-redirects.mjs --check"
+    "check-redirect-cases": "node scripts/write-nginx-redirects.mjs --check",
+    "check-seo-http": "node scripts/check-seo-http.mjs",
+    "test-seo-http": "node --test scripts/check-seo-http.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.3.1",

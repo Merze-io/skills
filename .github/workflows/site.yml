@@ -36,6 +36,10 @@ jobs:
         working-directory: site
         run: npm ci
 
+      - name: Test HTTP discovery checker fixtures
+        working-directory: site
+        run: npm run test-seo-http
+
       - name: Check skill-dates.json and redirect-cases.tsv are fresh
         working-directory: site
         run: |
@@ -671,6 +675,9 @@ jobs:
           test "$code" = "200"
           loc=$(curl -sI http://127.0.0.1:18081/files/us-llc-state-cost/ | tr -d '\r' | awk -F': ' 'tolower($1)=="location"{print $2}')
           test "$loc" = "/skill/us-llc-state-cost/SKILL.md"
+          # Read-only SEO checks on the Coolify-style image. This container is
+          # removed next, so these probes cannot spend the later rate-test bucket.
+          npm --prefix site run check-seo-http -- --origin http://127.0.0.1:18081
           docker rm -f "$cid_nogit" >/dev/null
 
           docker build -f site/Dockerfile -t skills-merze-ai:ci .
