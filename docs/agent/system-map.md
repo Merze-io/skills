@@ -26,7 +26,7 @@ Build publishes static `dist/` (Pagefind + nginx redirects). Coolify serves the 
 
 - **Code.** Repo-root folders with `SKILL.md` (e.g. `us-llc-state-cost/`). Nested docs like `us-llc-state-cost/states.md`.
 - **Discovery.** `site/src/lib/skills.ts` + frontmatter validation.
-- **Dates.** `site/data/skill-dates.json` (regenerate with `npm run generate-skill-dates` after squash/rebase).
+- **Dates.** `site/data/skill-dates.json` (regenerate with `npm run generate-skill-dates` after squash/rebase — including the squash of any PR that touches a skill folder, because squashing rewrites the commit date).
 - **Safety.** Do not invent skills. Underscore draft folders (`_drafts`) are ignored.
 
 ### 3. Skill detail + install surfaces
