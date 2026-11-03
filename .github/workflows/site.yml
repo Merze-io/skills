@@ -124,6 +124,10 @@ jobs:
         working-directory: site
         run: npm run test-seo
 
+      - name: Edge purge unit tests
+        working-directory: site
+        run: npm run test-purge
+
       - name: Verify built page SEO
         working-directory: site
         run: npm run check-seo-pages

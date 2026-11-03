@@ -52,6 +52,8 @@ Build publishes static `dist/` (Pagefind + nginx redirects). Coolify serves the 
 - **Staging (harness target).** Coolify app on branch `develop` → `https://skills.dev.merze.ai`. Health `GET /healthz`.
 - **Staging indexing.** One image serves both hosts. `site/nginx.conf` maps `$host` so `skills.dev.merze.ai` returns `X-Robots-Tag: noindex, nofollow` and a `Disallow: /` robots.txt; production gets neither. Proof. `curl -sI -H 'Host: skills.dev.merze.ai' <origin>/`.
 - **Production.** Coolify app `skills` uuid `voo7amqb3tnf6uavnitfpqyf` on `main` → `https://skills.merze.ai`.
+- **Edge cache.** Cloudflare Cache Rule (`http_request_cache_settings`) caches `skills.merze.ai` HTML for 300s, excluding `/_astro/` and `/pagefind/` (those keep immutable 1-year origin headers). No rule targets `www`, `api`, `app`, or `cdn`.
+- **Post-deploy purge.** `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ZONE_ID=… npm run purge-edge-cache` from `site/` after the container is live. It purges exactly the built sitemap URLs plus the discovery files, refuses off-origin URLs, and exits 0 with a skip message when credentials are absent. Without it a deploy can lag up to 300s.
 - **Safety.** Agents merge only to `develop`. Humans promote `develop` → `main`.
 - **Edge rate limits (MER-1104).** Mechanism is **nginx `limit_req`** in `site/nginx.conf` (committed, grep-able; no Cloudflare). `limit_req_status 429`; zone key `$binary_remote_addr` after realip from private hops (`set_real_ip_from` 10/8, 172.16/12, 192.168/16, 127.0.0.1; `real_ip_header X-Forwarded-For`). Thresholds (window 60s, all `nodelay`):
 
