@@ -3,17 +3,29 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import PagefindSearch from "../components/PagefindSearch.astro";
 import SkillFilters from "../components/SkillFilters.astro";
 import { getSkillListItems } from "../lib/skills";
+import { absolute, skillPath } from "../lib/routes";
+import { buildCollectionPage } from "../lib/seo.mjs";
+import { getPageSeo } from "../lib/supporting-metadata";
 
 const skills = await getSkillListItems();
 const skillCount = skills.length;
+const description = getPageSeo("/").description;
+const structuredData = buildCollectionPage({
+  siteUrl: absolute("/"),
+  url: absolute("/"),
+  name: "Merze Skills",
+  description,
+  skills: skills.map((skill) => ({ name: skill.title, url: absolute(skillPath(skill.slug)) })),
+});
 
 const agents = ["ChatGPT", "Claude", "Cursor", "Claude Code"] as const;
 ---
 
 <BaseLayout
   title="Skills"
-  description="Browse and download public Agent Skills from Merze — ready for ChatGPT, Claude, Cursor, and Claude Code."
+  description={description}
   canonicalPath="/"
+  structuredData={structuredData}
 >
   <section class="hero" aria-labelledby="hero-heading">
     <h1 id="hero-heading" class="hero__title">Merze Skills<span class="hero__period" aria-hidden="true">.</span></h1>

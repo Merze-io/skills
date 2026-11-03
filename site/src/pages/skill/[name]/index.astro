@@ -17,8 +17,10 @@ import {
   supportingFileSlug,
   formatUpdated,
 } from "../../../lib/skills";
-import { SITE_ORIGIN, skillDocPath, skillPath } from "../../../lib/routes";
+import { absolute, SITE_ORIGIN, skillDocPath, skillPath } from "../../../lib/routes";
 import { extractToc } from "../../../lib/toc";
+import { buildSkillPage, socialImageForSkill } from "../../../lib/seo.mjs";
+import { getPageSeo, getSupportingMetadata } from "../../../lib/supporting-metadata";
 
 export async function getStaticPaths() {
   const skills = await getAllSkills();
@@ -44,6 +46,20 @@ const updated = formatUpdated(updatedAt);
 const version = skill.data.metadata?.version ?? null;
 const tags = skill.data.metadata?.tags ?? [];
 const category = skill.data.metadata?.category ?? null;
+const canonicalPath = skillPath(slug);
+const description = getPageSeo(canonicalPath).description ?? parts.summary;
+const structuredData = buildSkillPage({
+  siteUrl: absolute("/"),
+  url: absolute(canonicalPath),
+  name: title,
+  description,
+  version,
+  updatedAt,
+  breadcrumbs: [
+    { name: "All skills", url: absolute("/") },
+    { name: title, url: absolute(canonicalPath) },
+  ],
+});
 
 const publishedForPaste = [...publishedFiles].sort((a, b) => {
   if (a.relativePath === "SKILL.md") return -1;
@@ -74,8 +90,10 @@ const chatAgentPaste = [
 
 <BaseLayout
   title={title}
-  description={parts.summary}
-  canonicalPath={skillPath(slug)}
+  description={description}
+  canonicalPath={canonicalPath}
+  structuredData={structuredData}
+  {...socialImageForSkill(slug)}
 >
   <article data-pagefind-body class="skill-detail">
     <header class="skill-detail__header">
@@ -201,11 +219,17 @@ const chatAgentPaste = [
           <ul class="file-list">
             {supporting.map((file) => {
               const fileSlug = supportingFileSlug(file);
+              const presentation = getSupportingMetadata({
+                canonicalPath: skillDocPath(slug, fileSlug),
+                body: file.body ?? "",
+                filename: `${fileSlug}.md`,
+                skillTitle: title,
+              });
               return (
                 <li>
                   <a href={skillDocPath(slug, fileSlug)}>
                     <Icon name="file" size={14} />
-                    {fileSlug}.md
+                    {presentation.title}
                   </a>
                   <a
                     class="file-list__download"
