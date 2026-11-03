@@ -26,31 +26,46 @@ const structuredData = buildAboutPage({
   <article class="prose about-page">
     <h1>About Agent Skills</h1>
     <p>
-      Agent Skills are folders of instructions that agents can load on demand.
-      Each skill is a directory with a <code>SKILL.md</code> file (YAML
-      frontmatter + markdown body) and optional supporting files. Use them in
-      public ChatGPT, Claude, Cursor, Claude Code, and other skill-capable
-      agents.
+      An Agent Skill is a folder of instructions that an AI agent loads on
+      demand. It holds a <code>SKILL.md</code> file — YAML frontmatter plus
+      markdown steps — and optional supporting files. This catalog publishes
+      such skills for anyone to read, download, and install.
     </p>
 
-    <h2>Install a skill</h2>
+    <h2>Which agents can use these skills?</h2>
     <p>
-      Open any skill in the catalog. Copy the install command, or download every
-      listed file and place them under <code>&lt;slug&gt;/</code> in your
-      agent’s skills directory, then reload so the agent discovers the skill.
-      Skill pages also offer a chat-agent paste with links to
-      <code>SKILL.md</code> and supporting files for ChatGPT-style agents.
+      Any agent that supports the Agent Skills format: public ChatGPT, Claude,
+      Cursor, Claude Code, and other skill-capable tools. The format is plain
+      files on disk, so support depends on the agent, not on this catalog.
     </p>
-    <p>
-      Typical install from this catalog:
-    </p>
-    <pre tabindex="0"><code>npx skills add https://skills.merze.ai --skill &lt;name&gt;</code></pre>
 
-    <h2>Skill layout</h2>
+    <h2>How do I install a skill?</h2>
+    <p>Pick whichever fits your agent:</p>
     <ul>
       <li>
-        Folder at the catalog root named with the skill slug (lowercase
-        letters, digits, and hyphens; max 64 characters).
+        <strong>Skills CLI.</strong> Run the install command shown on the skill
+        page — for example:
+        <pre tabindex="0"><code>npx skills add https://skills.merze.ai --skill &lt;name&gt;</code></pre>
+      </li>
+      <li>
+        <strong>Download the files.</strong> Put every listed file in a folder
+        named after the skill slug inside your agent's skills directory, then
+        reload the agent. The skill page offers a copyable <code>curl</code>
+        command that recreates the folder for you.
+      </li>
+      <li>
+        <strong>Chat agents.</strong> Some agents cannot read local folders.
+        The skill page builds a paste with direct links to
+        <code>SKILL.md</code> and each supporting file, which you can hand to
+        the agent in one message.
+      </li>
+    </ul>
+
+    <h2>What is in a skill folder?</h2>
+    <ul>
+      <li>
+        A folder named with the skill slug — lowercase letters, digits, and
+        hyphens, 64 characters at most.
       </li>
       <li>
         <code>SKILL.md</code> with required frontmatter:
@@ -64,21 +79,43 @@ const structuredData = buildAboutPage({
         </ul>
       </li>
       <li>
-        Optional supporting markdown (and allowlisted text/data files) published
-        beside <code>SKILL.md</code>.
+        Optional supporting text — markdown, plain text, JSON, YAML, or CSV —
+        published beside <code>SKILL.md</code>.
       </li>
     </ul>
+
+    <h2>How is this catalog built?</h2>
     <p>
-      This site rebuilds from every root <code>*/SKILL.md</code>. Invalid
-      <code>name</code> or <code>description</code>, a name/folder mismatch, or
-      a disallowed file type in a skill folder fails the build.
+      The site rebuilds from every top-level <code>*/SKILL.md</code> in the
+      repository. An invalid <code>name</code> or <code>description</code>, a
+      name/folder mismatch, or a disallowed file type fails the build, so a
+      broken skill never reaches the catalog.
+    </p>
+    <p>
+      Every skill page shows its own version and last-updated date. The fee
+      figures in a skill's supporting files are dated inside those files, with
+      links to the official source for each one.
     </p>
 
-    <h2>Merze</h2>
+    <h2>Why publish them openly?</h2>
     <p>
-      Skills are published by
-      <a href="https://merze.ai">Merze</a>. For contributions or questions,
-      contact Merze through <a href="https://merze.ai">merze.ai</a>.
+      A skill is only useful if you can see what it will tell your agent. Plain
+      files, a readable version number, and a public download link make a skill
+      reviewable before it runs — and easy to update when the rules inside it
+      change.
+    </p>
+
+    <h2>Who publishes these skills?</h2>
+    <p>
+      Skills are published by <a href="https://merze.ai">Merze</a>, which also
+      offers US company formation, registered-agent, and tax-filing services.
+      Publishing a skill is not a recommendation of those services: a skill
+      states its own scope and sources, and general information in it is not
+      legal, tax, or formation advice.
+    </p>
+    <p>
+      For contributions or questions, contact Merze through
+      <a href="https://merze.ai">merze.ai</a>.
     </p>
   </article>
 </BaseLayout>
