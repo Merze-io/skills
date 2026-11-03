@@ -706,6 +706,15 @@ jobs:
           curl -sI "$ORIGIN/" | grep -qi 'content-security-policy'
           curl -sI "$ORIGIN/" | grep -qi 'x-content-type-options: nosniff'
           curl -sI "$ORIGIN/" | grep -qi 'wasm-unsafe-eval'
+
+          # Staging shares the image with production: only the staging hostname
+          # is told not to index, and production must not carry the header.
+          ! curl -sI "$ORIGIN/" | grep -qi 'x-robots-tag'
+          curl -sI -H 'Host: skills.dev.merze.ai' "$ORIGIN/" | grep -qi 'x-robots-tag: noindex, nofollow'
+          curl -s -H 'Host: skills.dev.merze.ai' "$ORIGIN/robots.txt" | grep -q 'Disallow: /'
+          curl -s "$ORIGIN/robots.txt" | grep -q 'Sitemap: https://skills.merze.ai/sitemap-index.xml'
+          ! curl -s -H 'Host: skills.dev.merze.ai' "$ORIGIN/robots.txt" | grep -q 'Sitemap:'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: skills.dev.merze.ai' "$ORIGIN/skill/us-llc-state-cost/SKILL.md")" = "200"
           # Real hashed _astro asset: 200 + CSP + immutable Cache-Control
           asset=$(docker exec "$cid" sh -c 'ls /usr/share/nginx/html/_astro | head -1')
           test -n "$asset"
