@@ -35,20 +35,32 @@ Build publishes static `dist/` (Pagefind + nginx redirects). Coolify serves the 
 - **Distribution.** `site/src/lib/distribution.ts`, `site/src/integrations/distribution.ts`.
 - **Allowlist.** `site/src/lib/skill-sources.mjs` — md/txt/json/yaml/yml/csv only. No symlinks.
 - **Artifacts.** Per-skill zip/tar, `skills.json`, `.well-known/agent-skills/index.json`, `llms.txt`.
-- **Legacy path.** `/files/` 301s to `/skill/`.
+- **Legacy path.** `/files/` 301s to `/skill/`. Skill case + slash/index variants redirect to the canonical skill path in one hop; queries are preserved.
+- **HTTP discovery.** `site/nginx.conf` captures the validated, query-free skill path before `try_files` changes `$uri`. Its `Link` alternate points to `/skill/<name>/SKILL.md`. `/sitemap.xml` returns a one-hop 301 to `/sitemap-index.xml`, preserving queries and security headers. The index and `robots.txt` must describe this catalog, not the main Merze website.
 
 ### 4. Build gates
 
 - **Dates / redirects.** `npm run check-skill-dates`, `npm run check-redirect-cases`.
 - **Scrub.** `site/scripts/scrub-github.mjs` fail-closed (allowlist literal `github-copilot`).
 - **Verify.** `npm run verify-dist`.
-- **CI.** `.github/workflows/site.yml` (build + docker smoke).
+- **HTTP checks.** `site/scripts/check-seo-http.mjs` checks GET/HEAD, exact Markdown alternates and MIME, query/case/slash/index behavior, robots, same-host sitemap inventory, canonical tags, and true 404s. Expected inventory comes from the served catalog and its one-level supporting Markdown files, not a fixed skill count.
+- **Policy profiles.** `origin` requires search access but not training exclusions. `production-edge` also requires the audited GPTBot, ClaudeBot, and Google-Extended exclusions. This validates robots directives, not actual crawler delivery or legal permissions. Edge overrides need separate approved production work.
+- **CI.** `.github/workflows/site.yml` runs checker fixture tests and the HTTP checker against the Coolify-style no-git Docker image, plus all existing build/distribution/docker gates.
 
 ### 5. Deploy
 
 - **Staging (harness target).** Coolify app on branch `develop` → `https://skills.dev.merze.ai`. Health `GET /healthz`.
 - **Production.** Coolify app `skills` uuid `voo7amqb3tnf6uavnitfpqyf` on `main` → `https://skills.merze.ai`.
 - **Safety.** Agents merge only to `develop`. Humans promote `develop` → `main`.
+- **Edge rate limits (MER-1104).** Mechanism is **nginx `limit_req`** in `site/nginx.conf` (committed, grep-able; no Cloudflare). `limit_req_status 429`; zone key `$binary_remote_addr` after realip from private hops (`set_real_ip_from` 10/8, 172.16/12, 192.168/16, 127.0.0.1; `real_ip_header X-Forwarded-For`). Thresholds (window 60s, all `nodelay`):
+
+  | Group | Endpoints | rate | burst |
+  | --- | --- | --- | --- |
+  | raw files (`rl_raw`) | `~ ^/skill/[a-z0-9-]+/.` | `30r/m` | `20` |
+  | zips (`rl_zip`) | `~ ^/(?:skill/[a-z0-9-]+\|skills)\.zip$` | `10r/m` | `6` |
+  | discovery JSON (`rl_discovery`) | `/skills.json`, `/.well-known/agent-skills/index.json`, `/skill/<name>.json`, `/skill/<name>/.well-known/agent-skills/index.json` | `60r/m` | `30` |
+
+  Discovery uses the `$discovery_key` map; `schemas/*.json` map to an empty key and stay unlimited. HTML pages, `/llms*.txt`, `/install.md`, `pagefind`, `/_astro`, and `tar.gz` archives are unlimited. Do not hammer `/skills.zip` in QA.
 
 ## Env
 

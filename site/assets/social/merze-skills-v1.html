@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Merze Skills — social card (v1)</title>
+    <meta name="viewport" content="width=1200, initial-scale=1" />
+    <!--
+      Source template for site/public/social/merze-skills-v1.png (1200x630).
+      Render with: node scripts/generate-social-images.mjs
+      Self-contained: local font files in ./fonts/ and the official mark in
+      ../../public/merze-mark.png. No network requests, no CDN.
+      All key text carries data-safe and is checked against the 64px inset.
+    -->
+    <style>
+      @font-face {
+        font-family: "Rethink Sans";
+        font-style: normal;
+        font-weight: 400;
+        font-display: block;
+        src: url("./fonts/rethink-sans-latin-400-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Rethink Sans";
+        font-style: normal;
+        font-weight: 500;
+        font-display: block;
+        src: url("./fonts/rethink-sans-latin-500-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Rethink Sans";
+        font-style: normal;
+        font-weight: 600;
+        font-display: block;
+        src: url("./fonts/rethink-sans-latin-600-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Rethink Sans";
+        font-style: normal;
+        font-weight: 700;
+        font-display: block;
+        src: url("./fonts/rethink-sans-latin-700-normal.woff2") format("woff2");
+      }
+      @font-face {
+        font-family: "Rethink Sans";
+        font-style: normal;
+        font-weight: 800;
+        font-display: block;
+        src: url("./fonts/rethink-sans-latin-800-normal.woff2") format("woff2");
+      }
+
+      :root {
+        --color-brand: #112e51;
+        --color-heading: #00278a;
+        --color-link: #205493;
+        --color-accent: #ff7744;
+        --color-text: #1a2332;
+        --color-muted: #5b6b7c;
+        --color-muted-strong: #37474f;
+        --color-surface: #f3f6fb;
+        --color-bg: #ffffff;
+        --color-border: #d7e0ec;
+        --safe-inset: 64px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 1200px;
+        height: 630px;
+        margin: 0;
+        padding: 0;
+        background: var(--color-bg);
+      }
+
+      body {
+        font-family: "Rethink Sans", system-ui, sans-serif;
+        color: var(--color-text);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: geometricPrecision;
+      }
+
+      .canvas {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        width: 1200px;
+        height: 630px;
+        padding: var(--safe-inset);
+        overflow: hidden;
+      }
+
+      /* Brand lockup: official mark + MERZE word + Skills label */
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex: 0 0 auto;
+      }
+
+      .brand__mark {
+        display: block;
+        width: 38px;
+        height: auto;
+      }
+
+      .brand__word {
+        font-size: 27px;
+        font-weight: 800;
+        letter-spacing: 0.045em;
+        line-height: 1;
+        color: var(--color-heading);
+      }
+
+      .brand__label {
+        padding-left: 12px;
+        border-left: 1px solid var(--color-border);
+        font-size: 22px;
+        font-weight: 600;
+        line-height: 1;
+        color: var(--color-muted-strong);
+      }
+
+      .main {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        justify-content: center;
+        gap: 26px;
+        padding-right: 300px;
+      }
+
+      .title {
+        margin: 0;
+        font-size: 104px;
+        font-weight: 800;
+        line-height: 0.96;
+        letter-spacing: -0.035em;
+        color: var(--color-heading);
+      }
+
+      .period {
+        color: var(--color-accent);
+      }
+
+      .lede {
+        max-width: 720px;
+        margin: 0;
+        font-size: 35px;
+        font-weight: 500;
+        line-height: 1.36;
+        color: var(--color-muted-strong);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 2px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .chip {
+        padding: 9px 17px;
+        border: 1px solid var(--color-border);
+        border-radius: 999px;
+        background: var(--color-surface);
+        font-size: 19px;
+        font-weight: 600;
+        line-height: 1.2;
+        color: var(--color-link);
+      }
+
+      /* Mark panel: brand anchor on the right, no decorative iconography */
+      .mark-panel {
+        position: absolute;
+        top: 200px;
+        right: var(--safe-inset);
+        display: grid;
+        place-items: center;
+        width: 232px;
+        height: 232px;
+        border: 1px solid var(--color-border);
+        border-radius: 28px;
+        background: var(--color-surface);
+      }
+
+      .mark-panel__mark {
+        width: 92px;
+        height: auto;
+      }
+
+      .footer {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 18px;
+        border-top: 1px solid var(--color-border);
+      }
+
+      .footer__label {
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--color-muted);
+      }
+
+      .footer__domain {
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        color: var(--color-brand);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="canvas">
+      <div class="brand" data-safe>
+        <img
+          class="brand__mark"
+          src="../../public/merze-mark.png"
+          alt=""
+          width="38"
+          height="41"
+        />
+        <span class="brand__word">MERZE</span>
+        <span class="brand__label">Skills</span>
+      </div>
+
+      <div class="mark-panel" aria-hidden="true">
+        <img
+          class="mark-panel__mark"
+          src="../../public/merze-mark.png"
+          alt=""
+          width="92"
+          height="100"
+        />
+      </div>
+
+      <div class="main">
+        <h1 class="title" data-safe>Merze Skills<span class="period">.</span></h1>
+        <p class="lede" data-safe>
+          Agent skills for formation, compliance &amp; ops.
+        </p>
+        <ul class="chips" data-safe>
+          <li class="chip">ChatGPT</li>
+          <li class="chip">Claude</li>
+          <li class="chip">Cursor</li>
+          <li class="chip">Claude Code</li>
+        </ul>
+      </div>
+
+      <div class="footer">
+        <span class="footer__label" data-safe>Agent skills catalog</span>
+        <span class="footer__domain" data-safe>skills.merze.ai</span>
+      </div>
+    </div>
+  </body>
+</html>

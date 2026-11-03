@@ -1,20 +1,35 @@
 ---
 import rethinkWoff2 from "@fontsource/rethink-sans/files/rethink-sans-latin-400-normal.woff2?url";
 import "../styles/global.css";
+import JsonLd from "../components/JsonLd.astro";
+import { absolute } from "../lib/routes";
+import { buildSiteGraph } from "../lib/seo.mjs";
 
 interface Props {
   title: string;
   description?: string;
   canonicalPath?: string;
+  socialImage?: string;
+  socialImageAlt?: string;
+  socialImageWidth?: number;
+  socialImageHeight?: number;
+  structuredData?: Record<string, unknown>[];
 }
 
 const {
   title,
   description = "Public Agent Skills from Merze — install into ChatGPT, Claude, Cursor, Claude Code, and other skill-capable agents.",
   canonicalPath = "/",
+  socialImage = "/social/merze-skills-v1.png",
+  socialImageAlt = "Merze Skills — public Agent Skills",
+  socialImageWidth = 1200,
+  socialImageHeight = 630,
+  structuredData = [],
 } = Astro.props;
 
-const canonical = new URL(canonicalPath, Astro.site).href;
+const canonical = absolute(canonicalPath);
+const socialImageUrl = absolute(socialImage);
+const jsonLd = buildSiteGraph({ siteUrl: absolute("/"), nodes: structuredData });
 const pageTitle =
   title === "Skills" ? "Merze Agent Skills" : `${title} · Merze Agent Skills`;
 ---
@@ -39,8 +54,17 @@ const pageTitle =
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content={new URL("/favicon.png", Astro.site).href} />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:site_name" content="Merze Agent Skills" />
+    <meta property="og:image" content={socialImageUrl} />
+    <meta property="og:image:width" content={String(socialImageWidth)} />
+    <meta property="og:image:height" content={String(socialImageHeight)} />
+    <meta property="og:image:alt" content={socialImageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={socialImageUrl} />
+    <meta name="twitter:image:alt" content={socialImageAlt} />
+    <JsonLd data={jsonLd} />
     <title>{pageTitle}</title>
   </head>
   <body>

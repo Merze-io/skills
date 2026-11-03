@@ -1,0 +1,4 @@
+{
+  "confidence": 93,
+  "confidenceReason": "All six normalized ACs map to concrete nginx limit_req changes plus deployed-URL curl proof; mechanism choice and threshold values were left as my default picks and the prod-URL ACs depend on later human promotion from develop→main."
+}

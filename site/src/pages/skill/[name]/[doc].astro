@@ -10,8 +10,10 @@ import {
   skillSlug,
   supportingFileSlug,
 } from "../../../lib/skills";
-import { skillDocPath, skillPath } from "../../../lib/routes";
+import { absolute, skillDocPath, skillPath } from "../../../lib/routes";
 import { extractToc } from "../../../lib/toc";
+import { buildSupportingPage, socialImageForSkill } from "../../../lib/seo.mjs";
+import { getSupportingMetadata } from "../../../lib/supporting-metadata";
 
 export async function getStaticPaths() {
   const skills = await getAllSkills();
@@ -35,14 +37,35 @@ const slug = skillSlug(skill);
 const skillTitle = displayTitle(skill);
 const { Content } = await render(supporting);
 const toc = extractToc(supporting.body ?? "");
-const title = `${fileSlug}.md · ${skillTitle}`;
-const downloadUrl = skillFileUrl(slug, `${fileSlug}.md`);
+const canonicalPath = skillDocPath(slug, fileSlug);
+const filename = `${fileSlug}.md`;
+const { title, description } = getSupportingMetadata({
+  canonicalPath,
+  body: supporting.body ?? "",
+  filename,
+  skillTitle,
+});
+const downloadUrl = skillFileUrl(slug, filename);
+const structuredData = buildSupportingPage({
+  siteUrl: absolute("/"),
+  url: absolute(canonicalPath),
+  name: title,
+  description,
+  parentUrl: absolute(skillPath(slug)),
+  breadcrumbs: [
+    { name: "Catalog", url: absolute("/") },
+    { name: skillTitle, url: absolute(skillPath(slug)) },
+    { name: title, url: absolute(canonicalPath) },
+  ],
+});
 ---
 
 <BaseLayout
   title={title}
-  description={`Supporting file ${fileSlug}.md for ${skillTitle}`}
-  canonicalPath={skillDocPath(slug, fileSlug)}
+  description={description}
+  canonicalPath={canonicalPath}
+  structuredData={structuredData}
+  {...socialImageForSkill(slug)}
 >
   <article data-pagefind-body class="skill-detail">
     <p class="back-row">
@@ -52,11 +75,12 @@ const downloadUrl = skillFileUrl(slug, `${fileSlug}.md`);
       </a>
     </p>
     <header class="skill-detail__header">
-      <h1>{fileSlug}.md</h1>
+      <h1>{title}</h1>
+      <p class="lede">{description}</p>
       <div class="skill-meta">
         <a class="btn btn--secondary btn--sm" href={downloadUrl} download>
           <Icon name="download" size={16} />
-          Download
+          Download {filename}
         </a>
       </div>
     </header>

@@ -15,4 +15,6 @@ dist-nginx/
 .impeccable/build/
 .impeccable/questions/
 .impeccable/review/
-assets/
+# Impeccable comp plates stay local; social-card sources are reproducible inputs.
+assets/*
+!assets/social/

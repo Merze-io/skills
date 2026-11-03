@@ -1,0 +1,61 @@
+{
+  "schemaVersion": 1,
+  "status": "ready",
+  "issue": "MER-1104",
+  "kind": "feature",
+  "title": "skills.merze.ai: rate limiting for raw files, zips, and discovery JSON",
+  "summary": "Add rate limiting at the edge (nginx limit_req or Cloudflare) for the /skill/<name>/ raw file and zip endpoints and the discovery JSON on skills.merze.ai, so automated installs cannot hammer the Coolify app. Follow-up from the review on skills#3, scoped to land after PR-1 through PR-4.",
+  "problem": "The /skill/<name>/ raw file and zip endpoints plus the discovery JSON on skills.merze.ai are served by the Coolify app without request throttling, so automated installs can hammer the app (raised in the review of skills#3).",
+  "desiredOutcome": "Requests to the /skill/<name>/ raw file endpoints, the zip download endpoints, and the discovery JSON are rate limited at the edge, so abusive or runaway automated clients are throttled before reaching the Coolify app, while normal install traffic continues to succeed.",
+  "requirements": [
+    "Apply rate limiting to the raw file endpoints under /skill/<name>/ on skills.merze.ai.",
+    "Apply rate limiting to the zip download endpoints under /skill/<name>/ on skills.merze.ai.",
+    "Apply rate limiting to the discovery JSON endpoint(s) served by skills.merze.ai.",
+    "Implement the limiting using one of the two mechanisms named in the issue: nginx limit_req in the Coolify deployment, or Cloudflare rate limiting rules; record which mechanism was chosen in the repository or deployment documentation.",
+    "Set explicit per-request thresholds and windows for each limited endpoint group, and record those values in the repository or deployment configuration so they can be reviewed and adjusted.",
+    "Request paths that exceed the configured threshold must receive an HTTP 429 response instead of reaching the Coolify app.",
+    "Requests below the configured threshold must continue to return the same status codes and bodies as before the change; response payloads of these endpoints are unchanged."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "AC1",
+      "text": "The rate-limiting configuration covering the /skill/<name>/ raw file endpoints, the zip download endpoints, and the discovery JSON is present in the repository or deployment config and is locatable by a grep of the committed config (e.g. the limit_req/Cloudflare rule and its threshold values)."
+    },
+    {
+      "id": "AC2",
+      "text": "Explicit threshold and window values are recorded for each limited endpoint group, and the record identifies which of the two approved mechanisms (nginx limit_req or Cloudflare) was used."
+    },
+    {
+      "id": "AC3",
+      "text": "Against the deployed skills.merze.ai URL, a curl loop that exceeds the configured threshold on a raw file endpoint under /skill/<name>/ returns HTTP 429, proven by curl output captured in the QA record."
+    },
+    {
+      "id": "AC4",
+      "text": "Against the deployed skills.merze.ai URL, a curl loop that exceeds the configured threshold on a zip download endpoint under /skill/<name>/ returns HTTP 429, proven by curl output captured in the QA record."
+    },
+    {
+      "id": "AC5",
+      "text": "Against the deployed skills.merze.ai URL, a curl loop that exceeds the configured threshold on the discovery JSON endpoint returns HTTP 429, proven by curl output captured in the QA record."
+    },
+    {
+      "id": "AC6",
+      "text": "A request below the configured threshold to each of the three limited endpoint groups still returns the pre-change status code and body, proven by a curl comparison captured in the QA record."
+    }
+  ],
+  "constraints": [
+    "Implement this only after PR-1 through PR-4 have landed; the issue explicitly scopes this work after that merge series.",
+    "Use one of the two mechanisms named in the issue: nginx limit_req in the Coolify deployment, or Cloudflare rate limiting rules.",
+    "Thresholds must be explicit and recorded; they must be chosen so that ordinary automated install traffic (occasional raw file and zip fetches) is not throttled.",
+    "The endpoints' response payloads and content must not be altered by this work."
+  ],
+  "nonGoals": [
+    "Per-user, per-API-key, or per-tenant quotas and authentication-based throttling.",
+    "Rate limiting endpoints other than the /skill/<name>/ raw files, the zip downloads, and the discovery JSON.",
+    "General WAF, bot management, or DDoS protection beyond the rate limits described here.",
+    "Performance, caching, or CDN changes to these endpoints."
+  ],
+  "references": [
+    "https://github.com/Merze-io/skills/pull/3#pullrequestreview-5609862273"
+  ],
+  "sourceCommentIds": []
+}
