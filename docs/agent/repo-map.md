@@ -16,6 +16,7 @@
 | `site/scripts/check-seo-http.mjs` | Bounded read-only HTTP discovery + origin/production-edge policy checks |
 | `site/scripts/check-seo-http.test.mjs` | Dynamic-catalog HTTP fixtures and negative regression tests |
 | `site/scripts/check-seo-pages.mjs` | Built-page SEO assertions (CI) |
+| `site/scripts/purge-edge-cache.mjs` | Post-deploy Cloudflare cache purge for built URLs |
 | `site/scripts/write-nginx-redirects.mjs` | Generate nginx maps and `site/scripts/redirect-cases.tsv` |
 | `site/scripts/generate-social-images.mjs` | Render committed 1200×630 social cards |
 | `site/nginx.conf` | Origin routes, stable Markdown alternate, sitemap alias, rate limits |
@@ -47,6 +48,8 @@ From `site` (Node 22):
 | `npm run check-seo-pages` | Built-page canonical/OG/JSON-LD assertions |
 | `npm run social-images` | Re-render social cards (manual, offline) |
 | `npm run check-social-images` | Fail if committed social cards are stale (local only: font rendering is platform-specific) |
+| `npm run purge-edge-cache` | Purge Cloudflare edge HTML cache for the built pages (post-deploy) |
+| `npm run test-purge` | Edge-purge URL collection and batching tests |
 | `npm run axe:viewports` | Axe at 320 / 360 / 1280 |
 
 From repo root:
