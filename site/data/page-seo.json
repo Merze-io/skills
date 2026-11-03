@@ -1,9 +1,9 @@
 {
   "/": {
-    "description": "Browse public Agent Skills from Merze. Download instructions and supporting files for ChatGPT, Claude, Cursor, and Claude Code."
+    "description": "Public Agent Skills from Merze. See what a skill contains, install one in ChatGPT, Claude, Cursor, or Claude Code, and read every file before you use it."
   },
   "/about": {
-    "description": "Learn what Agent Skills contain, how to install them, and how Merze publishes this public catalog."
+    "description": "What an Agent Skill is, which agents support the format, how to install one with npx or plain files, and who publishes this catalog."
   },
   "/skill/us-llc-state-cost": {
     "description": "Compare U.S. domestic LLC formation fees and recurring state costs with an agent skill, a sourced fee table, and state-specific cautions."

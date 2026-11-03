@@ -608,6 +608,13 @@ h3 {
   word-break: break-word;
 }
 
+/* Explainer under the catalog — separates "what is a skill" from the results. */
+.how-this-works {
+  margin-top: 3rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--color-border);
+}
+
 .prose :where(p, ul, ol, blockquote, pre, table) {
   margin: 0 0 1rem;
 }

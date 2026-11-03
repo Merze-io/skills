@@ -30,9 +30,9 @@ const agents = ["ChatGPT", "Claude", "Cursor", "Claude Code"] as const;
   <section class="hero" aria-labelledby="hero-heading">
     <h1 id="hero-heading" class="hero__title">Merze Skills<span class="hero__period" aria-hidden="true">.</span></h1>
     <p class="hero__lede">
-      Install-ready agent skills for formation, compliance, and ops. Search the
-      catalog, then download every file — works in ChatGPT, Claude, Cursor, and
-      Claude Code.
+      Public Agent Skills for formation, compliance, and operations. Each skill
+      is a folder you can download, read, and install — no account, no runtime,
+      no lock-in.
     </p>
     <ul class="agent-chips" aria-label="Works with">
       {
@@ -57,4 +57,33 @@ const agents = ["ChatGPT", "Claude", "Cursor", "Claude Code"] as const;
     <h2 class="catalog__title">Catalog</h2>
     <SkillFilters skills={skills} />
   </div>
+
+  <section class="prose how-this-works" aria-labelledby="how-heading">
+    <h2 id="how-heading">What is an Agent Skill?</h2>
+    <p>
+      An Agent Skill is a folder of instructions that an AI agent loads when a
+      task matches it. The folder has a <code>SKILL.md</code> file — YAML
+      frontmatter plus markdown steps — and optional supporting files such as a
+      data table or a reference sheet.
+    </p>
+    <p>
+      Skills here are plain text. You can open every file before you install it,
+      diff two versions, or keep a copy in your own repository. Nothing in this
+      catalog phones home or runs code on your behalf.
+    </p>
+
+    <h2 id="use-heading">How do you use one?</h2>
+    <ol>
+      <li>Open a skill and read its <code>SKILL.md</code>.</li>
+      <li>
+        Install it with <code>npx skills add</code>, or download the files into
+        your agent's skills directory.
+      </li>
+      <li>Reload the agent so it discovers the skill, then ask a question that matches it.</li>
+    </ol>
+    <p>
+      Full steps, including the paste-for-chat-agents option, are on the
+      <a href="/about">About page</a>.
+    </p>
+  </section>
 </BaseLayout>
