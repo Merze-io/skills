@@ -124,6 +124,10 @@ jobs:
         working-directory: site
         run: npm run test-seo
 
+      - name: Edge purge unit tests
+        working-directory: site
+        run: npm run test-purge
+
       - name: Verify built page SEO
         working-directory: site
         run: npm run check-seo-pages
@@ -706,6 +710,15 @@ jobs:
           curl -sI "$ORIGIN/" | grep -qi 'content-security-policy'
           curl -sI "$ORIGIN/" | grep -qi 'x-content-type-options: nosniff'
           curl -sI "$ORIGIN/" | grep -qi 'wasm-unsafe-eval'
+
+          # Staging shares the image with production: only the staging hostname
+          # is told not to index, and production must not carry the header.
+          ! curl -sI "$ORIGIN/" | grep -qi 'x-robots-tag'
+          curl -sI -H 'Host: skills.dev.merze.ai' "$ORIGIN/" | grep -qi 'x-robots-tag: noindex, nofollow'
+          curl -s -H 'Host: skills.dev.merze.ai' "$ORIGIN/robots.txt" | grep -q 'Disallow: /'
+          curl -s "$ORIGIN/robots.txt" | grep -q 'Sitemap: https://skills.merze.ai/sitemap-index.xml'
+          ! curl -s -H 'Host: skills.dev.merze.ai' "$ORIGIN/robots.txt" | grep -q 'Sitemap:'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: skills.dev.merze.ai' "$ORIGIN/skill/us-llc-state-cost/SKILL.md")" = "200"
           # Real hashed _astro asset: 200 + CSP + immutable Cache-Control
           asset=$(docker exec "$cid" sh -c 'ls /usr/share/nginx/html/_astro | head -1')
           test -n "$asset"
@@ -772,6 +785,10 @@ jobs:
           import subprocess, sys
           from pathlib import Path
           origin = "http://127.0.0.1:18080"
+          # limit_req keys on the real client IP. These checks hit raw files many
+          # times, so pin a client of their own; otherwise they share the 172.17.x
+          # bucket with the distribution checks below and trip rl_raw's burst.
+          client = ["-H", "X-Forwarded-For: 10.255.9.2, 10.211.0.2"]
           rows = []
           for line in Path("site/scripts/redirect-cases.tsv").read_text().splitlines():
               if not line.strip() or line.startswith("#"):
@@ -783,7 +800,7 @@ jobs:
           for req, want_status, want_loc in rows:
               # curl --max-redirs 0 still follows? use -sI and parse
               out = subprocess.check_output(
-                  ["curl", "-sI", "--max-redirs", "0", origin + req],
+                  ["curl", "-sI", "--max-redirs", "0", *client, origin + req],
                   text=True,
               )
               lines = out.replace("\r", "").splitlines()
@@ -813,6 +830,7 @@ jobs:
                           "-L",
                           "--max-redirs",
                           "2",
+                          *client,
                           origin + req,
                       ],
                       text=True,
@@ -831,18 +849,21 @@ jobs:
           PY
 
           # --- distribution checks ---
-          hdr=$(curl -sI "$ORIGIN/skill/us-llc-state-cost/SKILL.md")
+          # Own client bucket again: these fetch raw files repeatedly and must not
+          # inherit limit_req state from the redirect matrix above.
+          DIST=(-H "X-Forwarded-For: 10.255.9.3, 10.212.0.2")
+          hdr=$(curl -sI "${DIST[@]}" "$ORIGIN/skill/us-llc-state-cost/SKILL.md")
           echo "$hdr" | head -1 | grep -q '200'
           echo "$hdr" | grep -qi 'content-type: text/markdown'
           echo "$hdr" | grep -qi 'charset=utf-8'
           echo "$hdr" | grep -qi 'access-control-allow-origin: \*'
           etag=$(echo "$hdr" | tr -d '\r' | awk -F': ' 'tolower($1)=="etag"{print $2}')
           test -n "$etag"
-          code304=$(curl -s -o /dev/null -w '%{http_code}' -H "If-None-Match: $etag" "$ORIGIN/skill/us-llc-state-cost/SKILL.md")
+          code304=$(curl -s -o /dev/null -w '%{http_code}' "${DIST[@]}" -H "If-None-Match: $etag" "$ORIGIN/skill/us-llc-state-cost/SKILL.md")
           test "$code304" = "304"
-          curl -fsS "$ORIGIN/skill/us-llc-state-cost/SKILL.md" -o /tmp/served-SKILL.md
+          curl -fsS "${DIST[@]}" "$ORIGIN/skill/us-llc-state-cost/SKILL.md" -o /tmp/served-SKILL.md
           cmp -s /tmp/served-SKILL.md us-llc-state-cost/SKILL.md
-          curl -fsS "$ORIGIN/skill/us-llc-state-cost/states.md" -o /tmp/served-states.md
+          curl -fsS "${DIST[@]}" "$ORIGIN/skill/us-llc-state-cost/states.md" -o /tmp/served-states.md
           cmp -s /tmp/served-states.md us-llc-state-cost/states.md
 
           # HTML skill page 200 (no trailing slash)
@@ -850,7 +871,7 @@ jobs:
           curl -sf "$ORIGIN/skill/us-llc-state-cost/states" | grep -qi 'states'
           curl -sf "$ORIGIN/about" | grep -qi 'About'
 
-          curl -fsS "$ORIGIN/skill/us-llc-state-cost.zip" -o /tmp/skill.zip
+          curl -fsS "${DIST[@]}" "$ORIGIN/skill/us-llc-state-cost.zip" -o /tmp/skill.zip
           rm -rf /tmp/zip-out && mkdir /tmp/zip-out
           python3 - <<'PY'
           import zipfile

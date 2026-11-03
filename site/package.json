@@ -22,7 +22,9 @@
     "check-seo-pages": "node scripts/check-seo-pages.mjs",
     "test-seo": "node --test tests/seo.test.mjs",
     "social-images": "node scripts/generate-social-images.mjs",
-    "check-social-images": "node scripts/generate-social-images.mjs --check"
+    "check-social-images": "node scripts/generate-social-images.mjs --check",
+    "purge-edge-cache": "node scripts/purge-edge-cache.mjs",
+    "test-purge": "node --test tests/purge-edge-cache.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.3.1",
