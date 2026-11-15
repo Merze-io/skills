@@ -49,6 +49,11 @@ const PAGES = [
     file: "skill/us-llc-state-cost/states/index.html",
     types: ["Organization", "WebSite", "WebPage", "CreativeWork", "BreadcrumbList"],
   },
+  {
+    path: "/skill/delaware-c-corp-setup-advisor-indian-founders",
+    file: "skill/delaware-c-corp-setup-advisor-indian-founders/index.html",
+    types: ["Organization", "WebSite", "WebPage", "CreativeWork", "BreadcrumbList"],
+  },
 ];
 
 /** Read an attribute from the opening tags of `name` (meta/link). */
