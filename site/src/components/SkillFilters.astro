@@ -1,5 +1,6 @@
 ---
 import CopyButton from "./CopyButton.astro";
+import Icon from "./Icon.astro";
 import type { SkillListItem } from "../lib/skills";
 
 interface Props {
@@ -123,6 +124,28 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
           {skill.hasSupporting && (
             <span class="badge badge--soft">supporting files</span>
           )}
+        </div>
+        <div class="skill-card__chat">
+          <a
+            class="chat-link"
+            href={skill.chatGptUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${skill.title} in ChatGPT with the skill prompt filled in`}
+          >
+            <Icon name="external" size={12} />
+            ChatGPT
+          </a>
+          <a
+            class="chat-link"
+            href={skill.claudeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${skill.title} in Claude with the skill prompt filled in`}
+          >
+            <Icon name="external" size={12} />
+            Claude
+          </a>
         </div>
         <a class="skill-card__link" href={`/skill/${skill.slug}`}><span class="sr-only">View {skill.title}</span></a>
       </li>
