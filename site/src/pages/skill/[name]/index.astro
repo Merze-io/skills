@@ -20,6 +20,7 @@ import {
 import { absolute, SITE_ORIGIN, skillDocPath, skillPath } from "../../../lib/routes";
 import { extractToc } from "../../../lib/toc";
 import { buildSkillPage, socialImageForSkill } from "../../../lib/seo.mjs";
+import { chatGptLink, claudeLink } from "../../../lib/chat-links.mjs";
 import { getPageSeo, getSupportingMetadata } from "../../../lib/supporting-metadata";
 
 export async function getStaticPaths() {
@@ -86,6 +87,8 @@ const chatAgentPaste = [
   "",
   "Treat SKILL.md as the instructions. Use supporting files only when the skill says to.",
 ].join("\n");
+const chatGptUrl = chatGptLink(chatAgentPaste);
+const claudeUrl = claudeLink(chatAgentPaste);
 ---
 
 <BaseLayout
@@ -190,6 +193,30 @@ const chatAgentPaste = [
         <p class="panel__copy">
           Paste into ChatGPT, Claude, or another chat agent so it can open the
           skill files from this catalog.
+        </p>
+        <div class="chat-links">
+          <a
+            class="chat-link"
+            href={chatGptUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icon name="external" size={14} />
+            Open in ChatGPT
+          </a>
+          <a
+            class="chat-link"
+            href={claudeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Icon name="external" size={14} />
+            Open in Claude
+          </a>
+        </div>
+        <p class="chat-note">
+          The prompt opens prefilled. Press Send in the chat. If your app does
+          not fill it in, copy the prompt below.
         </p>
         <div class="install-snippet">
           <pre tabindex="0"><code>{chatAgentPaste}</code></pre>

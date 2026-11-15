@@ -124,6 +124,10 @@ jobs:
         working-directory: site
         run: npm run test-seo
 
+      - name: Chat link unit tests
+        working-directory: site
+        run: npm run test-chat-links
+
       - name: Edge purge unit tests
         working-directory: site
         run: npm run test-purge

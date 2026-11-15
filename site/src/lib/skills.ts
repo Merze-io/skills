@@ -8,6 +8,7 @@ import {
   type SkillSourceFile,
 } from "./skill-sources";
 import { SITE_ORIGIN } from "./routes";
+import { chatGptLink, claudeLink } from "./chat-links.mjs";
 import { readSkillDates } from "./skill-dates";
 
 export type SkillEntry = CollectionEntry<"skills">;
@@ -247,6 +248,8 @@ export type SkillListItem = {
   updatedAt: string | null;
   description: string;
   chatAgentPaste: string;
+  chatGptUrl: string;
+  claudeUrl: string;
 };
 
 /** Human label for catalog and detail pages; falls back to the machine name. */
@@ -263,6 +266,7 @@ export async function getSkillListItems(): Promise<SkillListItem[]> {
     const slug = skillSlug(skill);
     const parts = parseDescription(skill.data.description);
     const supporting = await getSupportingFiles(slug);
+    const paste = getChatAgentPaste(slug);
     items.push({
       slug,
       name: skill.data.name,
@@ -274,7 +278,9 @@ export async function getSkillListItems(): Promise<SkillListItem[]> {
       hasSupporting: supporting.length > 0,
       updatedAt: getSkillUpdatedAt(slug),
       description: skill.data.description,
-      chatAgentPaste: getChatAgentPaste(slug),
+      chatAgentPaste: paste,
+      chatGptUrl: chatGptLink(paste),
+      claudeUrl: claudeLink(paste),
     });
   }
 

@@ -18,7 +18,7 @@ const structuredData = buildCollectionPage({
   skills: skills.map((skill) => ({ name: skill.title, url: absolute(skillPath(skill.slug)) })),
 });
 
-const agents = ["ChatGPT", "Claude", "Cursor", "Claude Code"] as const;
+const agents = ["ChatGPT", "Claude", "Claude Code"] as const;
 ---
 
 <BaseLayout
