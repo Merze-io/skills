@@ -1,6 +1,6 @@
 {
   "/": {
-    "description": "Public Agent Skills from Merze. See what a skill contains, install one in ChatGPT, Claude, Cursor, or Claude Code, and read every file before you use it."
+    "description": "Specialized AI skills for US taxation, accounting, business compliance and financial operations. Download and use domain-specific expertise with your AI assistant."
   },
   "/about": {
     "description": "What an Agent Skill is, which agents support the format, how to install one with npx or plain files, and who publishes this catalog."
