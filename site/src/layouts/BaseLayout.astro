@@ -18,7 +18,7 @@ interface Props {
 
 const {
   title,
-  description = "Public Agent Skills from Merze — install into ChatGPT, Claude, Cursor, Claude Code, and other skill-capable agents.",
+  description = "Specialized AI skills for US taxation, accounting, business compliance and financial operations. Download and use domain-specific expertise with your AI assistant.",
   canonicalPath = "/",
   socialImage = "/social/merze-skills-v1.png",
   socialImageAlt = "Merze Skills — public Agent Skills",
@@ -27,11 +27,11 @@ const {
   structuredData = [],
 } = Astro.props;
 
+const SITE_NAME = "US Tax & Accounting Intelligence";
 const canonical = absolute(canonicalPath);
 const socialImageUrl = absolute(socialImage);
 const jsonLd = buildSiteGraph({ siteUrl: absolute("/"), nodes: structuredData });
-const pageTitle =
-  title === "Skills" ? "Merze Agent Skills" : `${title} · Merze Agent Skills`;
+const pageTitle = title === "Skills" ? SITE_NAME : `${title} · ${SITE_NAME}`;
 ---
 
 <!doctype html>
@@ -54,7 +54,7 @@ const pageTitle =
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Merze Agent Skills" />
+    <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:image" content={socialImageUrl} />
     <meta property="og:image:width" content={String(socialImageWidth)} />
     <meta property="og:image:height" content={String(socialImageHeight)} />
