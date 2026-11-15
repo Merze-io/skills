@@ -785,10 +785,9 @@ jobs:
           import subprocess, sys
           from pathlib import Path
           origin = "http://127.0.0.1:18080"
-          # limit_req keys on the real client IP. These checks hit raw files many
-          # times, so pin a client of their own; otherwise they share the 172.17.x
-          # bucket with the distribution checks below and trip rl_raw's burst.
-          client = ["-H", "X-Forwarded-For: 10.255.9.2, 10.211.0.2"]
+          # limit_req keys on the real client IP. Give every row a fresh test
+          # bucket: a 301 row requests a raw file twice (request + followed hop),
+          # and all rows together would exceed rl_raw's burst on one shared IP.
           rows = []
           for line in Path("site/scripts/redirect-cases.tsv").read_text().splitlines():
               if not line.strip() or line.startswith("#"):
@@ -797,7 +796,9 @@ jobs:
               assert len(parts) == 3, line
               rows.append(parts)
           failed = []
-          for req, want_status, want_loc in rows:
+          for index, (req, want_status, want_loc) in enumerate(rows, start=1):
+              # 10.211.x.y is a test-only address; the last XFF entry is the key.
+              client = ["-H", f"X-Forwarded-For: 10.255.9.2, 10.211.{index // 250}.{index % 250 + 1}"]
               # curl --max-redirs 0 still follows? use -sI and parse
               out = subprocess.check_output(
                   ["curl", "-sI", "--max-redirs", "0", *client, origin + req],
@@ -897,11 +898,15 @@ jobs:
           import json
           d = json.load(open("/tmp/discovery.json"))
           assert d["$schema"].endswith("discovery/0.2.0/schema.json")
-          assert d["skills"][0]["type"] == "archive"
-          assert d["skills"][0]["name"] == "us-llc-state-cost"
+          by_name = {s["name"]: s for s in d["skills"]}
+          llc = by_name["us-llc-state-cost"]
+          assert llc["type"] == "archive"
           # zip digest only (Node pinned); never publish tar.gz digests here
-          assert d["skills"][0]["url"].endswith(".zip")
-          assert "digest" in d["skills"][0]
+          assert llc["url"].endswith(".zip")
+          assert "digest" in llc
+          advisor = by_name["delaware-c-corp-setup-advisor-indian-founders"]
+          assert advisor["type"] == "skill-md"
+          assert advisor["url"].endswith("/skill/delaware-c-corp-setup-advisor-indian-founders/SKILL.md")
           PY
 
           TMPHOME=$(mktemp -d)
