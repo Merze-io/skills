@@ -113,14 +113,15 @@ const pageTitle = title === "Skills" ? SITE_NAME : `${title} · ${SITE_NAME}`;
       </div>
     </footer>
     <script is:inline>
-      // The site serves production and staging from one static build. Point
-      // prefilled chat prompts at the host the visitor is on, so staging tests
-      // read staging skill files instead of production ones.
+      // The site serves production and staging from one static build. Every
+      // copied command and prompt must use the host the visitor is on, so a
+      // staging copy reads staging files and a production copy reads
+      // production files. Canonical metadata and downloadable manifests keep
+      // the production origin.
       (() => {
         const canonical = "https://skills.merze.ai/";
         const origin = window.location.origin;
         if (origin === "https://skills.merze.ai") return;
-        const marker = "Read these Merze skill files";
         const localize = (text) => text.split(canonical).join(`${origin}/`);
         for (const link of document.querySelectorAll("a.chat-link[href]")) {
           let url;
@@ -130,18 +131,18 @@ const pageTitle = title === "Skills" ? SITE_NAME : `${title} · ${SITE_NAME}`;
             continue;
           }
           const prompt = url.searchParams.get("q");
-          if (!prompt || !prompt.includes(marker)) continue;
+          if (!prompt || !prompt.includes(canonical)) continue;
           url.search = "?q=" + encodeURIComponent(localize(prompt));
           link.setAttribute("href", url.toString());
         }
         for (const code of document.querySelectorAll("pre code")) {
           const text = code.textContent || "";
-          if (!text.includes(marker)) continue;
+          if (!text.includes(canonical)) continue;
           code.textContent = localize(text);
         }
         for (const button of document.querySelectorAll("button[data-copy]")) {
           const text = button.getAttribute("data-copy") || "";
-          if (!text.includes(marker)) continue;
+          if (!text.includes(canonical)) continue;
           button.setAttribute("data-copy", localize(text));
         }
       })();
