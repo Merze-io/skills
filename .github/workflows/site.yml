@@ -898,11 +898,15 @@ jobs:
           import json
           d = json.load(open("/tmp/discovery.json"))
           assert d["$schema"].endswith("discovery/0.2.0/schema.json")
-          assert d["skills"][0]["type"] == "archive"
-          assert d["skills"][0]["name"] == "us-llc-state-cost"
+          by_name = {s["name"]: s for s in d["skills"]}
+          llc = by_name["us-llc-state-cost"]
+          assert llc["type"] == "archive"
           # zip digest only (Node pinned); never publish tar.gz digests here
-          assert d["skills"][0]["url"].endswith(".zip")
-          assert "digest" in d["skills"][0]
+          assert llc["url"].endswith(".zip")
+          assert "digest" in llc
+          advisor = by_name["delaware-c-corp-setup-advisor-indian-founders"]
+          assert advisor["type"] == "skill-md"
+          assert advisor["url"].endswith("/skill/delaware-c-corp-setup-advisor-indian-founders/SKILL.md")
           PY
 
           TMPHOME=$(mktemp -d)
