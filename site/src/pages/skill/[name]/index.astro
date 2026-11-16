@@ -107,6 +107,26 @@ const claudeUrl = claudeLink(chatAgentPaste);
         </a>
       </p>
       <h1>{title}</h1>
+      <div class="chat-links skill-detail__actions">
+        <a
+          class="chat-link"
+          href={chatGptUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="external" size={14} />
+          Open in ChatGPT
+        </a>
+        <a
+          class="chat-link"
+          href={claudeUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <Icon name="external" size={14} />
+          Open in Claude
+        </a>
+      </div>
       <p class="lede">{parts.summary}</p>
       <div class="skill-meta">
         {version && <span class="badge">v{version}</span>}
@@ -129,29 +149,9 @@ const claudeUrl = claudeLink(chatAgentPaste);
     <section class="panel panel--chat" aria-labelledby="chat-agents-heading">
       <h2 class="panel__title" id="chat-agents-heading">Chat agents</h2>
       <p class="panel__copy">
-        Paste into ChatGPT, Claude, or another chat agent so it can open the
-        skill files from this catalog.
+        Copy this prompt into ChatGPT, Claude, or another chat agent so it can
+        open the skill files from this catalog.
       </p>
-      <div class="chat-links">
-        <a
-          class="chat-link"
-          href={chatGptUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Icon name="external" size={14} />
-          Open in ChatGPT
-        </a>
-        <a
-          class="chat-link"
-          href={claudeUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Icon name="external" size={14} />
-          Open in Claude
-        </a>
-      </div>
       <p class="chat-note">
         The prompt opens prefilled. Press Send in the chat. If your app does
         not fill it in, copy the prompt below.
