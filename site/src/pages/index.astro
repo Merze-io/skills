@@ -13,12 +13,12 @@ const description = getPageSeo("/").description;
 const structuredData = buildCollectionPage({
   siteUrl: absolute("/"),
   url: absolute("/"),
-  name: "Merze Skills",
+  name: "US Tax & Accounting Intelligence",
   description,
   skills: skills.map((skill) => ({ name: skill.title, url: absolute(skillPath(skill.slug)) })),
 });
 
-const agents = ["ChatGPT", "Claude", "Cursor", "Claude Code"] as const;
+const agents = ["ChatGPT", "Claude"] as const;
 ---
 
 <BaseLayout
@@ -28,7 +28,7 @@ const agents = ["ChatGPT", "Claude", "Cursor", "Claude Code"] as const;
   structuredData={structuredData}
 >
   <section class="hero" aria-labelledby="hero-heading">
-    <h1 id="hero-heading" class="hero__title">Merze Skills<span class="hero__period" aria-hidden="true">.</span></h1>
+    <h1 id="hero-heading" class="hero__title">US Tax &amp; Accounting Intelligence</h1>
     <p class="hero__lede">
       Public Agent Skills for formation, compliance, and operations. Each skill
       is a folder you can download, read, and install — no account, no runtime,

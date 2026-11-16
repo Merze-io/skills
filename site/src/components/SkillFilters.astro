@@ -1,5 +1,6 @@
 ---
 import CopyButton from "./CopyButton.astro";
+import Icon from "./Icon.astro";
 import type { SkillListItem } from "../lib/skills";
 
 interface Props {
@@ -11,16 +12,9 @@ const categories = [
   ...new Set(skills.map((s) => s.category).filter(Boolean) as string[]),
 ].sort();
 const tags = [...new Set(skills.flatMap((s) => s.tags))].sort();
-const versions = [
-  ...new Set(skills.map((s) => s.version).filter(Boolean) as string[]),
-].sort();
-const supportingYes = skills.filter((s) => s.hasSupporting).length;
-const supportingNo = skills.length - supportingYes;
 const showCategory = categories.length >= 2;
 const showTags = tags.length >= 2;
-const showVersions = versions.length >= 2;
-const showSupporting = supportingYes > 0 && supportingNo > 0;
-const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
+const showAnyFacet = showCategory || showTags;
 ---
 
 <section class="filters" aria-label="Filters" data-skills-filters>
@@ -53,30 +47,6 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
             </div>
           </fieldset>
         )}
-        {showVersions && (
-          <fieldset class="filter-group">
-            <legend>Version</legend>
-            <div class="filter-chips">
-              {versions.map((v) => (
-                <label class="chip">
-                  <input type="checkbox" data-filter="version" value={v} />
-                  {v}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
-        {showSupporting && (
-          <fieldset class="filter-group">
-            <legend>Supporting files</legend>
-            <div class="filter-chips">
-              <label class="chip">
-                <input type="checkbox" data-filter="supporting" value="yes" />
-                Has supporting files
-              </label>
-            </div>
-          </fieldset>
-        )}
       </div>
     )
   }
@@ -98,8 +68,6 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
         data-description={skill.description}
         data-category={skill.category ?? ""}
         data-tags={skill.tags.join(",")}
-        data-version={skill.version ?? ""}
-        data-supporting={skill.hasSupporting ? "yes" : "no"}
         data-updated={skill.updatedAt ?? ""}
       >
         <div class="skill-card__top">
@@ -120,9 +88,28 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
           {skill.tags.map((tag) => (
             <span class="badge badge--soft">{tag}</span>
           ))}
-          {skill.hasSupporting && (
-            <span class="badge badge--soft">supporting files</span>
-          )}
+        </div>
+        <div class="skill-card__chat">
+          <a
+            class="chat-link"
+            href={skill.chatGptUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${skill.title} in ChatGPT with the skill prompt filled in`}
+          >
+            <Icon name="external" size={12} />
+            ChatGPT
+          </a>
+          <a
+            class="chat-link"
+            href={skill.claudeUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${skill.title} in Claude with the skill prompt filled in`}
+          >
+            <Icon name="external" size={12} />
+            Claude
+          </a>
         </div>
         <a class="skill-card__link" href={`/skill/${skill.slug}`}><span class="sr-only">View {skill.title}</span></a>
       </li>
@@ -155,10 +142,6 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
 
     const categories = selectedValues("[data-filter=category]");
     const tags = selectedValues("[data-filter=tag]");
-    const versions = selectedValues("[data-filter=version]");
-    const supportingOnly = selectedValues("[data-filter=supporting]").includes(
-      "yes",
-    );
 
     const list = document.querySelector<HTMLElement>("[data-skill-list]");
     const rows = Array.from(
@@ -169,14 +152,10 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
     for (const row of rows) {
       const category = row.dataset.category ?? "";
       const rowTags = (row.dataset.tags ?? "").split(",").filter(Boolean);
-      const version = row.dataset.version ?? "";
-      const supporting = row.dataset.supporting === "yes";
 
       let show = true;
       if (categories.length && !categories.includes(category)) show = false;
       if (tags.length && !tags.some((t) => rowTags.includes(t))) show = false;
-      if (versions.length && !versions.includes(version)) show = false;
-      if (supportingOnly && !supporting) show = false;
 
       row.hidden = !show;
       if (show) visible += 1;
@@ -209,7 +188,7 @@ const showAnyFacet = showCategory || showTags || showVersions || showSupporting;
   function clearFilters() {
     document
       .querySelectorAll<HTMLInputElement>(
-        "[data-filter=category], [data-filter=tag], [data-filter=version], [data-filter=supporting]",
+        "[data-filter=category], [data-filter=tag]",
       )
       .forEach((el) => {
         el.checked = false;

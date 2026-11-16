@@ -16,7 +16,7 @@ export function buildSiteGraph({ siteUrl, nodes = [] }) {
       {
         "@type": "WebSite",
         "@id": websiteId(siteUrl),
-        name: "Merze Agent Skills",
+        name: "US Tax & Accounting Intelligence",
         url: siteUrl,
         inLanguage: "en",
         publisher: ref(ORGANIZATION_ID),

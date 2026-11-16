@@ -18,7 +18,7 @@ interface Props {
 
 const {
   title,
-  description = "Public Agent Skills from Merze — install into ChatGPT, Claude, Cursor, Claude Code, and other skill-capable agents.",
+  description = "Specialized AI skills for US taxation, accounting, business compliance and financial operations. Download and use domain-specific expertise with your AI assistant.",
   canonicalPath = "/",
   socialImage = "/social/merze-skills-v1.png",
   socialImageAlt = "Merze Skills — public Agent Skills",
@@ -27,11 +27,11 @@ const {
   structuredData = [],
 } = Astro.props;
 
+const SITE_NAME = "US Tax & Accounting Intelligence";
 const canonical = absolute(canonicalPath);
 const socialImageUrl = absolute(socialImage);
 const jsonLd = buildSiteGraph({ siteUrl: absolute("/"), nodes: structuredData });
-const pageTitle =
-  title === "Skills" ? "Merze Agent Skills" : `${title} · Merze Agent Skills`;
+const pageTitle = title === "Skills" ? SITE_NAME : `${title} · ${SITE_NAME}`;
 ---
 
 <!doctype html>
@@ -54,7 +54,7 @@ const pageTitle =
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Merze Agent Skills" />
+    <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:image" content={socialImageUrl} />
     <meta property="og:image:width" content={String(socialImageWidth)} />
     <meta property="og:image:height" content={String(socialImageHeight)} />
@@ -103,7 +103,7 @@ const pageTitle =
         <p>
           Public Agent Skills for
           <a href="https://merze.ai">Merze</a>
-          — ChatGPT, Claude, Cursor, Claude Code, and more.
+          — ChatGPT, Claude, and more.
         </p>
         <p>
           <a href="/skills.json">skills.json</a>
@@ -112,5 +112,40 @@ const pageTitle =
         </p>
       </div>
     </footer>
+    <script is:inline>
+      // The site serves production and staging from one static build. Every
+      // copied command and prompt must use the host the visitor is on, so a
+      // staging copy reads staging files and a production copy reads
+      // production files. Canonical metadata and downloadable manifests keep
+      // the production origin.
+      (() => {
+        const canonical = "https://skills.merze.ai/";
+        const origin = window.location.origin;
+        if (origin === "https://skills.merze.ai") return;
+        const localize = (text) => text.split(canonical).join(`${origin}/`);
+        for (const link of document.querySelectorAll("a.chat-link[href]")) {
+          let url;
+          try {
+            url = new URL(link.getAttribute("href"), origin);
+          } catch {
+            continue;
+          }
+          const prompt = url.searchParams.get("q");
+          if (!prompt || !prompt.includes(canonical)) continue;
+          url.search = "?q=" + encodeURIComponent(localize(prompt));
+          link.setAttribute("href", url.toString());
+        }
+        for (const code of document.querySelectorAll("pre code")) {
+          const text = code.textContent || "";
+          if (!text.includes(canonical)) continue;
+          code.textContent = localize(text);
+        }
+        for (const button of document.querySelectorAll("button[data-copy]")) {
+          const text = button.getAttribute("data-copy") || "";
+          if (!text.includes(canonical)) continue;
+          button.setAttribute("data-copy", localize(text));
+        }
+      })();
+    </script>
   </body>
 </html>

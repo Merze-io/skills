@@ -21,6 +21,7 @@
 | `site/scripts/generate-social-images.mjs` | Render committed 1200×630 social cards |
 | `site/nginx.conf` | Origin routes, stable Markdown alternate, sitemap alias, rate limits |
 | `site/src/lib/seo.mjs` | JSON-LD builders and safe serializer |
+| `site/src/lib/chat-links.mjs` | Prefilled ChatGPT / Claude prompt links |
 | `site/data/page-seo.json` | Presentation-only title/description overrides |
 | `site/public/social/` | Committed social preview PNGs |
 | `site/scripts/scrub-github.mjs` | Fail-closed github substring gate |
@@ -45,6 +46,7 @@ From `site` (Node 22):
 | `npm run test-seo-http` | Node HTTP checker fixtures; includes old alternate bug and multi-skill inventory |
 | `npm run check-seo-http -- --origin http://127.0.0.1:18080` | GET/HEAD discovery checks against a built nginx image |
 | `npm run test-seo` | Metadata builder and JSON-LD escaping tests |
+| `npm run test-chat-links` | ChatGPT / Claude prefilled link tests |
 | `npm run check-seo-pages` | Built-page canonical/OG/JSON-LD assertions |
 | `npm run social-images` | Re-render social cards (manual, offline) |
 | `npm run check-social-images` | Fail if committed social cards are stale (local only: font rendering is platform-specific) |

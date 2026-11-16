@@ -505,6 +505,58 @@ h3 {
   gap: 0.25rem;
 }
 
+.chat-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.chat-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-brand);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.chat-link:hover {
+  border-color: var(--color-link);
+  color: var(--color-link);
+}
+
+.chat-link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.chat-note {
+  margin: 0 0 0.85rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+.skill-card__chat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.skill-card__chat .chat-link {
+  position: relative;
+  z-index: 2;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+}
+
 .skill-meta {
   display: flex;
   flex-wrap: wrap;
@@ -529,19 +581,7 @@ h3 {
 }
 
 .skill-detail__header {
-  margin-bottom: 0.5rem;
-}
-
-.skill-detail__id {
-  margin: 0.35rem 0 0;
-  font-size: 0.875rem;
-  color: var(--color-muted);
-}
-
-.skill-detail__id code {
-  font-size: inherit;
-  font-weight: 500;
-  color: var(--color-muted-strong);
+  margin-bottom: 1rem;
 }
 
 .skill-detail__body {
