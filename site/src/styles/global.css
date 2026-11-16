@@ -581,19 +581,7 @@ h3 {
 }
 
 .skill-detail__header {
-  margin-bottom: 0.5rem;
-}
-
-.skill-detail__id {
-  margin: 0.35rem 0 0;
-  font-size: 0.875rem;
-  color: var(--color-muted);
-}
-
-.skill-detail__id code {
-  font-size: inherit;
-  font-weight: 500;
-  color: var(--color-muted-strong);
+  margin-bottom: 1rem;
 }
 
 .skill-detail__body {
